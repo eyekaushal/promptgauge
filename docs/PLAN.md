@@ -258,7 +258,7 @@ Claude updates this table at the end of every block. New sessions resume from th
 | Block | Status | Notes |
 |---|---|---|
 | B00 | ☑ | 17 Oct 2026. Skeleton + tooling; `uv sync && uv run pytest` green (0 tests), ruff clean, wheel builds. Dev deps moved to `[dependency-groups]`; entry point fixed to `cli.main:app`. |
-| B01 | ☐ | |
+| B01 | ☑ | 17 Oct 2026. `.github/workflows/ci.yml` (ruff, format check, pytest on py3.11+3.12; pip-audit job) + PR template. pip-audit clean locally. CI green to be confirmed on the PR. |
 | B02 | ☐ | |
 | B03 | ☐ | |
 | B04 | ☐ | |
