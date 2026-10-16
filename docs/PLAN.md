@@ -32,7 +32,7 @@
   1. Claude implements the block and runs its tests.
   2. Claude posts a ≤ 10-line summary: what changed, how to verify, the one commit.
   3. Kaushal reviews and commits (Claude never runs git).
-- **End of each branch:** Kaushal pushes and opens the PR; CI runs; he merges.
+- **End of each branch:** Kaushal pushes, opens the PR, runs `uv run ruff check . && uv run pytest -q` locally, and merges.
 - **End of each day:** 20-minute **explain-back** — Kaushal explains the day's classes and data flow in his own words. Anything he cannot explain gets walked through before the next day starts.
 
 > 🎨 **UI rule:** Before the UI blocks start, Claude stops and says: **"We are starting UI now — rewrite DESIGN.md to v1 first, then build."**
@@ -82,7 +82,7 @@ git commit -m "chore(core): initial project scaffold and docs"
 git remote add origin git@github.com:eyekaushal/promptgauge.git
 git push -u origin main
 ```
-On GitHub (as eyekaushal): **Settings → Branches → rule for `main`** → require a pull request + passing CI.
+On GitHub (as eyekaushal): **Settings → Branches → rule for `main`** → require a pull request. No GitHub Actions: lint and tests run locally.
 
 ### 3.3 Each branch
 
@@ -93,7 +93,7 @@ git checkout -b feature/<branch-name>
 git add <files> && git commit -m "feat(scope): …"
 git push -u origin feature/<branch-name>
 ```
-Open PR → CI green → **"Create a merge commit"** (keeps every commit visible) →
+Open PR → `uv run ruff check . && uv run pytest -q` green locally → **"Create a merge commit"** (keeps every commit visible) →
 ```bash
 git checkout main && git pull && git branch -d feature/<branch-name>
 ```
@@ -116,7 +116,7 @@ Fixes after release: `bugfix/<desc>` branches → `v0.1.1`.
 | Block | Branch | What gets built | PRD refs | Hrs | Done when |
 |---|---|---|---|---|---|
 | **B00** | main | `pyproject.toml` (hatchling, deps pinned in `uv.lock`), `ruff` config, `pytest` config, `.gitignore`, `.env.example`, LICENSE, `CLAUDE.md`, README stub, `docs/`, package skeleton with one-class-per-file layout, `examples/support-bot/` | — | 0.5 | `uv sync && uv run pytest` passes (zero tests collected is fine) |
-| **B01** | foundation-and-evaluator | CI workflow (ruff, pytest, `pip-audit`), PR template | §15 | 0.25 | CI green on the PR |
+| **B01** | foundation-and-evaluator | ~~CI workflow, PR template~~ **Cut 17 Oct 2026:** no GitHub Actions; lint and tests run locally | §15 | 0 | — |
 | **B02** | foundation-and-evaluator | `core/`: `Logger`, errors. `config/`: `Config` (Pydantic, `load()`), `Pricing` (dated table). `db/`: `Database` (sqlite3, WAL), `Migrator`, `migrations/001_init.sql` (all §12 tables), six repositories | F1.1, F1.4, §12 | 1.25 | Config errors name the field; migrations idempotent; repositories round-trip in tests |
 | **B03** | foundation-and-evaluator | `dataset/`: `Case`, `DatasetLoader` (hash, line-numbered errors) | F1.2, F1.3 | 0.5 | Bad line → `DatasetError` with the line number; hash stable across runs |
 | **B04** | foundation-and-evaluator | `provider/`: `Completion`, `AnthropicProvider` (one `complete()`, SDK retries, cost from `Pricing`), `FakeProvider` (scripted outputs, call log). `cache/`: `CallCache` (hash incl. repeat index; writes `call` rows) | F2.1–F2.6 | 1 | Live smoke call recorded with cost; second identical call hits the cache and costs $0 |
@@ -188,7 +188,6 @@ Not a watered-down v1. This is the order in which extras move to v0.1.1 if a day
 
 ```
 promptgauge/
-├── .github/workflows/ci.yml · PULL_REQUEST_TEMPLATE.md
 ├── CLAUDE.md · README.md · CHANGELOG.md · LICENSE · pyproject.toml · uv.lock · .gitignore · .env.example
 ├── docs/            PRD.md · PLAN.md · DESIGN.md · DISTRIBUTION.md · HANDOFF.md · PRIOR_ART.md · TODO.md
 ├── examples/
@@ -246,7 +245,7 @@ Coverage target: **≥ 85%** lines on `prompt/`, `stats/`, `ablate/`.
 ## 10. Definition of done
 
 **Block:** its "Done when" is met; tests for every new class pass; `ruff` clean; tracker (§11) updated; Claude has posted the one commit.
-**Branch:** all its blocks done; Kaushal pushed, opened the PR, CI green, merged.
+**Branch:** all its blocks done; Kaushal pushed, opened the PR, ruff and pytest green locally, merged.
 **Day:** explain-back done; next day's first block identified in §11.
 
 ---
@@ -258,8 +257,8 @@ Claude updates this table at the end of every block. New sessions resume from th
 | Block | Status | Notes |
 |---|---|---|
 | B00 | ☑ | 17 Oct 2026. Skeleton + tooling; `uv sync && uv run pytest` green (0 tests), ruff clean, wheel builds. Dev deps moved to `[dependency-groups]`; entry point fixed to `cli.main:app`. |
-| B01 | ☑ | 17 Oct 2026. `.github/workflows/ci.yml` (ruff, format check, pytest on py3.11+3.12; pip-audit job) + PR template. pip-audit clean locally. CI green to be confirmed on the PR. |
-| B02 | ☐ | |
+| B01 | ✂ | Cut 17 Oct 2026 (Kaushal's call): no GitHub Actions. `.github/` deleted; lint and tests run locally before every merge. |
+| B02 | ☑ | 17 Oct 2026. core (errors, Logger, clock), config (Config, ScorerSpec, Pricing dated 2026-10-17), db (Database, Migrator, 001_init.sql, six repositories). 60 tests. `call.hash` is indexed, not the PK, so a cache hit in a later experiment gets its own `cached=1` row (F2.6). |
 | B03 | ☐ | |
 | B04 | ☐ | |
 | B05 | ☐ | |

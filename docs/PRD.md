@@ -308,7 +308,7 @@ Design rules for all of them: `docs/DESIGN.md`.
 | Dashboard | **React 19 + Vite + Tailwind 4** | Same shape as contextlab and mailmoat; built into the wheel |
 | Tests | **pytest** + `pytest-asyncio`, **httpx** for API tests | Standard |
 | Lint/format | **ruff** | One tool |
-| CI | **GitHub Actions**: ruff, pytest, `pip-audit` | Required for PR merges |
+| Checks | `ruff` and `pytest` run locally before every merge; `pip-audit` before release | No GitHub Actions |
 
 Final versions are pinned in `uv.lock` at B00; any package added later is justified in its block summary.
 
@@ -429,7 +429,7 @@ These also go into `CLAUDE.md`.
 
 1. All "Must" features F1–F9 meet their acceptance criteria.
 2. The synthetic ablation test (F6 AC) passes; segmenter round-trips pass; the budget estimate on support-bot is within 25% of the bill.
-3. CI green: ruff, pytest, `pip-audit` with no high or critical issues.
+3. Local checks green: ruff, pytest, `pip-audit` with no high or critical issues.
 4. `pip install promptgauge` on a clean machine, `promptgauge ui` opens the dashboard with the bundled static build.
 5. README with install, config, the painted mailmoat prompt, the numbers, and the ProCut citation.
 6. The mailmoat Planner ablation report checked in, run inside $10.
