@@ -1,0 +1,9 @@
+prompt: system.md
+dataset: cases.jsonl
+model: claude-sonnet-4-5
+judge: claude-haiku-4-5
+scorers:
+  - contains
+  - rubric: helpful
+repeats: 3
+budget_usd: 1.00

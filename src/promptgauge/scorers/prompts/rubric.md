@@ -1,0 +1,1 @@
+Judge prompt for RubricScorer (v1). You will receive a rubric, a user input and a model output. Score the output against the rubric from 0.0 to 1.0 and answer with JSON only: {"score": number, "reason": string}.

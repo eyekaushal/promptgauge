@@ -1,0 +1,1 @@
+Judge prompt for GroundedScorer (v1). You will receive a context and a model output. List every factual claim in the output and mark each one supported or unsupported by the context. Answer with JSON only: {"claims": [{"text": string, "supported": boolean}]}.

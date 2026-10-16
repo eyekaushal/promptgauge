@@ -1,0 +1,1 @@
+Filled at B18: mailmoat's Planner system prompt (`system.md`), 40 cases from its attack lab and benign set (`cases.jsonl`), the plan JSON schema (`schema.json`), a config with `budget_usd: 10`, and the checked-in `report.md`.

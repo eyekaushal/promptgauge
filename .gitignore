@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+dist/
+build/
+*.egg-info/
+.promptgauge/
+*.db
+.env
+notes/
+node_modules/
+dashboard/dist/
+src/promptgauge/api/static/*
+!src/promptgauge/api/static/.gitkeep
+.DS_Store
+.pytest_cache/
+.ruff_cache/

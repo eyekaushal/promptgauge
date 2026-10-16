@@ -1,0 +1,1 @@
+Score whether the response stays on the user's question. 1.0 means every sentence serves the question. 0.5 means it drifts into related but unasked territory. 0.0 means it answers a different question.

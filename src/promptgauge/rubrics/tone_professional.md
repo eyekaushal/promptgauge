@@ -1,0 +1,1 @@
+Score whether the tone fits a professional support context. 1.0 means calm, direct, no slang, no excessive apology. 0.5 means mostly fine with one or two lapses. 0.0 means casual, flippant or hostile.

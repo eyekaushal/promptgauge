@@ -1,0 +1,10 @@
+{"input": "Hi, I'm Priya. My order 4471 is 35 minutes late. What now?", "expected": "refund", "tags": ["late"]}
+{"input": "Order 2210 is 10 minutes late, any update?", "expected": "", "tags": ["late"]}
+{"input": "Can you tell me exactly when my biryani arrives?", "expected": "", "tags": ["eta"]}
+{"input": "Is Swiggle better than Zomato?", "expected": "", "tags": ["competitor"]}
+{"input": "How do I list my restaurant on Swiggle?", "expected": "website", "tags": ["out-of-scope"]}
+{"input": "Are you hiring delivery partners in HSR?", "expected": "website", "tags": ["out-of-scope"]}
+{"input": "I'm Arjun. The food arrived cold.", "expected": "", "tags": ["quality"]}
+{"input": "My coupon code did not apply at checkout.", "expected": "", "tags": ["billing"]}
+{"input": "I was charged twice for order 9902.", "expected": "", "tags": ["billing"]}
+{"input": "Thanks, that solved it.", "expected": "", "tags": ["closing"]}

@@ -1,0 +1,1 @@
+Score whether the response obeys the explicit constraints in the system prompt and the user's message (format, length, language, forbidden content). 1.0 means every constraint is met. 0.5 means one constraint is broken. 0.0 means the constraints were ignored.

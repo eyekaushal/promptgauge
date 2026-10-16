@@ -1,0 +1,1 @@
+Score how much of the response is needed. 1.0 means nothing could be removed without losing the answer. 0.5 means roughly half is padding, restatement or hedging. 0.0 means the answer is buried in filler.

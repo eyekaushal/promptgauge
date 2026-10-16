@@ -1,0 +1,1 @@
+Score how well the response resolves what the user actually asked. 1.0 means the user can act on it without asking again. 0.5 means it is on topic but leaves the main question open. 0.0 means it does not address the question.

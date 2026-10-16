@@ -1,0 +1,57 @@
+[project]
+name = "promptgauge"
+version = "0.1.0"
+description = "Find out which lines of your system prompt actually do anything, with measured proof, and get a shorter prompt that scores the same."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Kaushal Shahare" }]
+requires-python = ">=3.11"
+keywords = ["llm", "evals", "prompt", "ablation", "anthropic"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Testing",
+]
+dependencies = [
+  "anthropic>=0.40",
+  "pydantic>=2.7",
+  "pyyaml>=6",
+  "jsonschema>=4",
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+  "typer>=0.12",
+  "rich>=13",
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.6", "httpx>=0.27", "pip-audit>=2.7"]
+
+[project.scripts]
+promptgauge = "promptgauge.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/eyekaushal/promptgauge"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/promptgauge"]
+artifacts = ["src/promptgauge/api/static/**"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
