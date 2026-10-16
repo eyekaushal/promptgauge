@@ -64,12 +64,20 @@ The same two things from code:
 ```python
 from promptgauge import evaluate, ablate, scorers
 
-result = evaluate(dataset="cases.jsonl", prompt="prompts/system.md",
-                  model="claude-sonnet-5-5",
-                  scorers=[scorers.contains(), scorers.rubric("rubrics/helpful.md")])
+result = evaluate(
+    dataset="cases.jsonl",
+    prompt="prompts/system.md",
+    model="claude-sonnet-5-5",
+    scorers=[scorers.contains(), scorers.rubric("rubrics/helpful.md")],
+)
 
-report = ablate(dataset="cases.jsonl", prompt="prompts/system.md",
-                model="claude-sonnet-5-5", repeats=3, budget_usd=2.0)
+report = ablate(
+    dataset="cases.jsonl",
+    prompt="prompts/system.md",
+    model="claude-sonnet-5-5",
+    repeats=3,
+    budget_usd=2.0,
+)
 print(report.cut_prompt)
 ```
 

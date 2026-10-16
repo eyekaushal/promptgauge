@@ -1,12 +1,17 @@
-"""Composition root and Typer app: promptgauge eval | ablate | ui. Every object is built here and injected through constructors."""
+"""Composition root and Typer app: promptgauge eval | ablate | ui. Every object is built here and
+injected through constructors.
+"""
 
 import typer
 
-app = typer.Typer(help="Which lines of your system prompt actually do anything.", no_args_is_help=True)
+app = typer.Typer(
+    help="Which lines of your system prompt actually do anything.",
+    no_args_is_help=True,
+)
 
 
 @app.command()
-def eval(config: str = "promptgauge.yaml") -> None:  # noqa: A001 - CLI verb, matches the docs
+def eval(config: str = "promptgauge.yaml") -> None:
     """Run every case against the prompt, score it, store it, print a table."""
     raise NotImplementedError
 

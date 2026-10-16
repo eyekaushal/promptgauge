@@ -252,9 +252,15 @@ Each scorer implements `score(case, output) -> ScoreResult(score: float in [0,1]
 ### 7.4 From code
 ```python
 from promptgauge import evaluate, ablate, scorers
-report = ablate(dataset="cases.jsonl", prompt="prompts/system.md",
-                model="claude-sonnet-4-5", repeats=3, budget_usd=2.0,
-                scorers=[scorers.contains(), scorers.rubric("helpful")])
+
+report = ablate(
+    dataset="cases.jsonl",
+    prompt="prompts/system.md",
+    model="claude-sonnet-4-5",
+    repeats=3,
+    budget_usd=2.0,
+    scorers=[scorers.contains(), scorers.rubric("helpful")],
+)
 print(report.cut_prompt, report.tokens_removed)
 ```
 

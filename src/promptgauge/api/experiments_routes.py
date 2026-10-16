@@ -1,1 +1,3 @@
-"""ExperimentsRoutes: GET /experiments, /experiments/{id}, /experiments/{id}/results, /experiments/compare."""
+"""ExperimentsRoutes: GET /experiments, /experiments/{id}, /experiments/{id}/results,
+/experiments/compare.
+"""

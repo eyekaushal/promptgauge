@@ -1,1 +1,3 @@
-"""Typed errors: PromptgaugeError, ConfigError, DatasetError, ProviderError, BudgetExceededError, ScorerError."""
+"""Typed errors: PromptgaugeError, ConfigError, DatasetError, ProviderError, BudgetExceededError,
+ScorerError.
+"""
