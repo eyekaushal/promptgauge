@@ -79,5 +79,6 @@ P1–P3 are what make it "look like the references"; P4 is behaviour; P5 is opti
 2. Indigo accent `#4f46e5`: **yes** (#1).
 3. Spend card with the new `GET /api/summary` route: **yes** (#3).
 4. Charts (P5): **deferred until after the live runs in B18**; design them against real score spreads.
+   - Revised 17 Oct 2026: Kaushal asked for P5 after P4, so it was built against the seeded fake data; recheck the histogram bins and scatter axes against the first live run (B18).
 
 Work order: P1 → P2 → P3 → P4, each as one commit on `feature/api-and-dashboard`, DESIGN.md updated first, visual pass on the seeded scratch project after. P5 waits for B18.

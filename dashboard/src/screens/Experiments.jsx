@@ -35,9 +35,12 @@ import { downloadText, toCsv } from "../ui/csv.js";
 import Dash from "../ui/Dash.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { count, dateTime, delta, duration, score, usd } from "../ui/format.js";
+import Histogram from "../ui/Histogram.jsx";
 import Menu from "../ui/Menu.jsx";
 import MetricGrid from "../ui/MetricGrid.jsx";
 import Panel from "../ui/Panel.jsx";
+import Scatter from "../ui/Scatter.jsx";
+import ScoreSpread from "../ui/ScoreSpread.jsx";
 import Section from "../ui/Section.jsx";
 import SegmentedControl from "../ui/SegmentedControl.jsx";
 import SidePanel from "../ui/SidePanel.jsx";
@@ -110,7 +113,9 @@ function RunsTable({ api, preset = null }) {
       icon: Percent,
       align: "right",
       sortValue: (r) => r.scorer_means[key] ?? null,
-      render: (r) => score(r.scorer_means[key]) ?? <Dash />,
+      render: (r) => (
+        <ScoreSpread api={api} runId={r.id} scorerKey={key} mean={r.scorer_means[key]} />
+      ),
     })),
     {
       key: "score",
@@ -423,7 +428,12 @@ function RunHeader({ run, configOpen, onConfigOpen }) {
       ...Object.entries(run.scorer_means).map(([k, v]) => ({
         key: `scorer:${k}`,
         label: k,
-        value: score(v) ?? <Dash />,
+        value: (
+          <span className="flex items-center gap-2">
+            {score(v) ?? <Dash />}
+            <Histogram values={run.case_scores.map((c) => c.scorer_means[k])} label={k} />
+          </span>
+        ),
       })),
     ],
     [
@@ -534,12 +544,20 @@ function Compare({ api, a, b }) {
         <SegmentedControl options={COMPARE_OPTIONS(threshold)} value={filter} onChange={setFilter} label="display" />
       </TitleRow>
       {data && (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <div className="px-5 pt-3 text-xs font-medium text-secondary">per scorer</div>
           <div className="max-h-56 shrink-0">
             <Table columns={scorerColumns} rows={scorerRows} rowKey={(r) => r.key} />
           </div>
           <div className="px-5 pt-4 text-xs font-medium text-secondary">per case</div>
+          {caseRows.length > 0 && (
+            <div className="flex shrink-0 flex-col gap-2 px-5 pt-3 pb-4">
+              <div className="text-sm text-secondary">
+                each case: {nameOf(data.a)} across, {nameOf(data.b)} up; on the diagonal nothing changed
+              </div>
+              <Scatter points={caseRows} threshold={threshold} nameA={nameOf(data.a)} nameB={nameOf(data.b)} />
+            </div>
+          )}
           {caseRows.length === 0 ? (
             <EmptyState
               Icon={ArrowsLeftRight}
