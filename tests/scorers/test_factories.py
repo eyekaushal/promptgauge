@@ -13,3 +13,11 @@ def test_factories_build_the_scorers(tmp_path: Path) -> None:
     assert isinstance(scorers.contains(), ContainsScorer)
     assert isinstance(scorers.exact(), ExactScorer)
     assert isinstance(scorers.json_schema(schema), JsonSchemaScorer)
+
+
+def test_judge_factories() -> None:
+    from promptgauge.scorers.grounded_scorer import GroundedScorer
+    from promptgauge.scorers.rubric_scorer import RubricScorer
+
+    assert isinstance(scorers.rubric("helpful"), RubricScorer)
+    assert isinstance(scorers.grounded(), GroundedScorer)

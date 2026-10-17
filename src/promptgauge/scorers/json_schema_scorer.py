@@ -3,7 +3,6 @@ F3.2.
 """
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
@@ -13,10 +12,7 @@ from jsonschema.validators import validator_for
 from promptgauge.core.errors import ScorerError
 from promptgauge.dataset.case import Case
 from promptgauge.scorers.score_result import ScoreResult
-from promptgauge.scorers.scorer import Scorer
-
-# A ```json ... ``` or ``` ... ``` block anywhere in the output; the first one is used.
-_FENCE = re.compile(r"```(?:json)?\s*\n?(.*?)```", re.DOTALL | re.IGNORECASE)
+from promptgauge.scorers.scorer import NOT_JSON, Scorer, parse_json
 
 
 class JsonSchemaScorer(Scorer):
@@ -40,8 +36,8 @@ class JsonSchemaScorer(Scorer):
         return f"json_schema:{self._path.name}"
 
     async def score(self, case: Case, output: str) -> ScoreResult:
-        data = self._parse(output)
-        if data is _NOT_JSON:
+        data = parse_json(output)
+        if data is NOT_JSON:
             return ScoreResult(score=0.0, reason="output is not valid JSON")
         error = next(iter(self._validator.iter_errors(data)), None)
         if error is None:
@@ -60,17 +56,3 @@ class JsonSchemaScorer(Scorer):
         if not isinstance(schema, dict):
             raise ScorerError(f"json_schema: {path} must contain a JSON object")
         return schema
-
-    @staticmethod
-    def _parse(output: str) -> Any:
-        candidates = [output.strip()] + [m.group(1).strip() for m in _FENCE.finditer(output)]
-        for candidate in candidates:
-            try:
-                return json.loads(candidate)
-            except json.JSONDecodeError:
-                continue
-        return _NOT_JSON
-
-
-# Sentinel: `None` is valid JSON (`null`), so a failed parse needs its own marker.
-_NOT_JSON = object()
