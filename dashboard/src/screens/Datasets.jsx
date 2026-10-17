@@ -1,7 +1,16 @@
-import { Database } from "@phosphor-icons/react";
+import {
+  ArrowDownRight,
+  Database,
+  Equals,
+  Hash,
+  Tag as TagIcon,
+  TextAlignLeft,
+} from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
+import Chip from "../ui/Chip.jsx";
 import CodeBlock from "../ui/CodeBlock.jsx";
+import ColumnPicker from "../ui/ColumnPicker.jsx";
 import Dash from "../ui/Dash.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { count, dateTime, shortHash } from "../ui/format.js";
@@ -11,6 +20,7 @@ import SidePanel from "../ui/SidePanel.jsx";
 import Table from "../ui/Table.jsx";
 import Tag from "../ui/Tag.jsx";
 import TitleRow from "../ui/TitleRow.jsx";
+import { useColumns } from "../ui/useColumns.js";
 import { useRequest } from "../ui/useRequest.js";
 
 /** F8.1: one table per dataset hash, row click opens the full text, search filters client-side. */
@@ -27,17 +37,19 @@ export default function Datasets({ api }) {
   const current = (datasets.data ?? []).find((d) => d.dataset_hash === hash) ?? null;
 
   const columns = [
-    { key: "index", label: "#", align: "right", width: 48 },
-    { key: "input", label: "input" },
+    { key: "index", label: "#", icon: Hash, align: "right", width: 48, fixed: true, muted: true },
+    { key: "input", label: "input", icon: ArrowDownRight, fixed: true },
     {
       key: "expected",
       label: "expected",
+      icon: Equals,
       render: (c) => c.expected ?? <Dash />,
     },
-    { key: "context", label: "context", render: (c) => c.context ?? <Dash /> },
+    { key: "context", label: "context", icon: TextAlignLeft, render: (c) => c.context ?? <Dash /> },
     {
       key: "tags",
       label: "tags",
+      icon: TagIcon,
       sortValue: (c) => c.tags.join(" "),
       render: (c) => (
         <span className="flex gap-1">
@@ -49,6 +61,7 @@ export default function Datasets({ api }) {
     },
   ];
 
+  const shown = useColumns("datasets", columns);
   const empty = !datasets.loading && (datasets.data ?? []).length === 0;
   return (
     <>
@@ -58,7 +71,15 @@ export default function Datasets({ api }) {
           Icon={Database}
           loading={datasets.loading || cases.loading}
           error={datasets.error ?? cases.error}
+          chips={
+            current && (
+              <Chip Icon={Database}>
+                {count(rows.length)} of {count(current.case_count)} cases
+              </Chip>
+            )
+          }
         >
+          {(datasets.data ?? []).length > 0 && <ColumnPicker columns={shown} />}
           {(datasets.data ?? []).length > 0 && (
             <select
               value={hash ?? ""}
@@ -89,18 +110,16 @@ export default function Datasets({ api }) {
           <>
             {current && (
               <div className="flex items-center gap-3 px-5 py-2 text-sm text-secondary">
-                <span className="font-mono" title={current.dataset_hash}>
+                <span className="font-mono" title="dataset hash: SHA-256 of the canonical cases">
                   {current.dataset_hash}
-                </span>
-                <span>
-                  {count(rows.length)} of {count(current.case_count)} cases
                 </span>
               </div>
             )}
             <Table
-              columns={columns}
+              columns={shown.visible}
               rows={rows}
               rowKey={(c) => c.id}
+              rowHeight={40}
               onRowClick={(c) => setSelectedId(c.id === selectedId ? null : c.id)}
               selectedKey={selectedId}
             />

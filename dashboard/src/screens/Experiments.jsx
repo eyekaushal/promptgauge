@@ -1,8 +1,32 @@
-import { ArrowsLeftRight, Eye, EyeSlash, Flask } from "@phosphor-icons/react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ArrowsLeftRight,
+  Clock,
+  Cpu,
+  CurrencyDollar,
+  Equals,
+  Eye,
+  EyeSlash,
+  Flask,
+  GitBranch,
+  Hash,
+  Lightning,
+  Percent,
+  Pulse,
+  Repeat,
+  Rows,
+  Stack,
+  TextAa,
+  Timer,
+  Triangle,
+} from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
+import Chip from "../ui/Chip.jsx";
 import CodeBlock from "../ui/CodeBlock.jsx";
+import ColumnPicker from "../ui/ColumnPicker.jsx";
 import Dash from "../ui/Dash.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { count, dateTime, delta, duration, score, usd } from "../ui/format.js";
@@ -13,6 +37,7 @@ import Table from "../ui/Table.jsx";
 import Tag from "../ui/Tag.jsx";
 import TitleRow from "../ui/TitleRow.jsx";
 import Tooltip from "../ui/Tooltip.jsx";
+import { useColumns } from "../ui/useColumns.js";
 import { useRequest } from "../ui/useRequest.js";
 
 const RUN_COMMAND = "promptgauge eval --config promptgauge.yaml";
@@ -44,6 +69,7 @@ function RunsTable({ api }) {
       key: "pick",
       label: "",
       width: 32,
+      fixed: true,
       render: (r) => (
         <input
           type="checkbox"
@@ -55,21 +81,29 @@ function RunsTable({ api }) {
         />
       ),
     },
-    { key: "name", label: "name", render: (r) => r.name ?? <Dash /> },
-    { key: "kind", label: "kind", render: (r) => <Tag>{r.kind}</Tag> },
-    { key: "model", label: "model" },
+    { key: "name", label: "name", icon: TextAa, fixed: true, render: (r) => r.name ?? <Dash /> },
+    { key: "kind", label: "kind", icon: Stack, render: (r) => <Tag>{r.kind}</Tag> },
+    { key: "model", label: "model", icon: Cpu },
     ...scorerKeys.map((key) => ({
       key: `scorer:${key}`,
       label: key,
+      icon: Percent,
       align: "right",
       sortValue: (r) => r.scorer_means[key] ?? null,
       render: (r) => score(r.scorer_means[key]) ?? <Dash />,
     })),
-    { key: "score", label: "score", align: "right", render: (r) => score(r.score) ?? <Dash /> },
-    { key: "cases", label: "cases", align: "right", render: (r) => count(r.cases) },
+    {
+      key: "score",
+      label: "score",
+      icon: Percent,
+      align: "right",
+      render: (r) => score(r.score) ?? <Dash />,
+    },
+    { key: "cases", label: "cases", icon: Rows, align: "right", render: (r) => count(r.cases) },
     {
       key: "calls",
       label: "calls",
+      icon: Lightning,
       align: "right",
       sortValue: (r) => r.totals.calls,
       render: (r) => (
@@ -82,6 +116,7 @@ function RunsTable({ api }) {
     {
       key: "cost",
       label: "cost",
+      icon: CurrencyDollar,
       align: "right",
       sortValue: (r) => r.totals.cost_usd,
       render: (r) => usd(r.totals.cost_usd),
@@ -89,21 +124,37 @@ function RunsTable({ api }) {
     {
       key: "duration",
       label: "duration",
+      icon: Timer,
       align: "right",
       sortValue: (r) => Date.parse(r.finished_at ?? "") - Date.parse(r.created_at),
       render: (r) => duration(r.created_at, r.finished_at) ?? <Dash word="running" />,
     },
-    { key: "created_at", label: "date", render: (r) => dateTime(r.created_at) },
+    { key: "created_at", label: "date", icon: Clock, render: (r) => dateTime(r.created_at) },
     {
       key: "status",
       label: "status",
+      icon: Pulse,
       render: (r) => <StatusTag status={r.status} stoppedReason={r.stopped_reason} />,
     },
   ];
+  const shown = useColumns("runs", columns);
 
   return (
     <Panel>
-      <TitleRow title="Experiments" Icon={Flask} loading={runs.loading} error={runs.error}>
+      <TitleRow
+        title="Experiments"
+        Icon={Flask}
+        loading={runs.loading}
+        error={runs.error}
+        chips={
+          rows.length > 0 && (
+            <Chip Icon={Flask}>
+              {count(rows.length)} {rows.length === 1 ? "run" : "runs"}
+            </Chip>
+          )
+        }
+      >
+        <ColumnPicker columns={shown} />
         {picked.length === 2 && (
           <button
             type="button"
@@ -122,9 +173,10 @@ function RunsTable({ api }) {
         <EmptyState Icon={Flask} title="No runs yet" command={RUN_COMMAND} />
       ) : (
         <Table
-          columns={columns}
+          columns={shown.visible}
           rows={rows}
           rowKey={(r) => r.id}
+          numbered
           onRowClick={(r) =>
             navigate(r.kind === "ablation" ? `/ablations/${r.id}` : `/experiments/${r.id}`)
           }
@@ -152,29 +204,37 @@ function ExperimentDetail({ api, id }) {
   const hasVariants = (results.data ?? []).some((r) => r.variant_id != null);
 
   const columns = [
-    { key: "case_index", label: "#", align: "right", width: 48 },
-    { key: "repeat_index", label: "repeat", align: "right", width: 64 },
+    { key: "case_index", label: "#", icon: Hash, align: "right", width: 48, fixed: true, muted: true },
+    { key: "repeat_index", label: "repeat", icon: Repeat, align: "right", width: 72 },
     ...(showVariants
       ? [
           {
             key: "variant_id",
             label: "variant",
+            icon: GitBranch,
             align: "right",
             render: (r) => r.variant_id ?? <span className="text-tertiary">baseline</span>,
           },
         ]
       : []),
-    { key: "input", label: "input" },
-    { key: "output", label: "output", render: (r) => r.output ?? <Dash word="failed" /> },
-    { key: "expected", label: "expected", render: (r) => r.expected ?? <Dash /> },
+    { key: "input", label: "input", icon: ArrowDownRight },
+    {
+      key: "output",
+      label: "output",
+      icon: ArrowUpRight,
+      render: (r) => r.output ?? <Dash word="failed" />,
+    },
+    { key: "expected", label: "expected", icon: Equals, render: (r) => r.expected ?? <Dash /> },
     ...scorerKeys.map((key) => ({
       key: `scorer:${key}`,
       label: key,
+      icon: Percent,
       align: "right",
       sortValue: (r) => r.scores[key]?.score ?? null,
       render: (r) => <ScoreCell result={r.scores[key]} />,
     })),
   ];
+  const shown = useColumns("results", columns);
 
   return (
     <>
@@ -185,7 +245,9 @@ function ExperimentDetail({ api, id }) {
           crumb={{ label: "Experiments", to: "/experiments" }}
           loading={detail.loading || results.loading || cases.loading}
           error={detail.error ?? results.error ?? cases.error}
+          chips={run && <RunChips run={run} />}
         >
+          <ColumnPicker columns={shown} />
           {hasVariants && (
             <button
               type="button"
@@ -203,9 +265,10 @@ function ExperimentDetail({ api, id }) {
           <EmptyState Icon={Flask} title="No results stored for this run" command={null} />
         ) : (
           <Table
-            columns={columns}
+            columns={shown.visible}
             rows={rows}
             rowKey={(r) => r.key}
+            rowHeight={40}
             onRowClick={(r) => setSelectedKey(r.key === selectedKey ? null : r.key)}
             selectedKey={selectedKey}
             rowClass={(r) => (r.failed ? "bg-danger-soft/40" : "")}
@@ -254,11 +317,7 @@ function RunHeader({ run }) {
     ["judge", run.judge],
     ["score", score(run.score) ?? <Dash />],
     ...Object.entries(run.scorer_means).map(([k, v]) => [k, score(v) ?? <Dash />]),
-    ["cases", count(run.cases)],
     ["repeats", count(run.repeats)],
-    ["calls", `${count(run.totals.calls)} · ${count(run.totals.cached)} cached`],
-    ["cost", usd(run.totals.cost_usd)],
-    ["duration", duration(run.created_at, run.finished_at) ?? <Dash word="running" />],
     ["date", dateTime(run.created_at)],
   ];
   return (
@@ -270,6 +329,22 @@ function RunHeader({ run }) {
         </div>
       ))}
     </div>
+  );
+}
+
+/** The run's totals as title-row chips: cases, calls (with cached), cost, duration. */
+export function RunChips({ run }) {
+  const took = duration(run.created_at, run.finished_at);
+  return (
+    <>
+      <Chip Icon={Rows}>{count(run.cases)} cases</Chip>
+      <Chip Icon={Lightning} title={`${count(run.totals.cached)} of these were cache hits`}>
+        {count(run.totals.calls)} calls
+        <span className="text-tertiary">· {count(run.totals.cached)} cached</span>
+      </Chip>
+      <Chip Icon={CurrencyDollar}>{usd(run.totals.cost_usd)}</Chip>
+      {took && <Chip Icon={Timer}>{took}</Chip>}
+    </>
   );
 }
 
@@ -294,19 +369,19 @@ function Compare({ api, a, b }) {
 
   const scorerColumns = data
     ? [
-        { key: "key", label: "scorer" },
-        { key: "a", label: nameOf(data.a), align: "right", render: (r) => score(r.a) ?? <Dash /> },
-        { key: "b", label: nameOf(data.b), align: "right", render: (r) => score(r.b) ?? <Dash /> },
-        { key: "delta", label: "delta", align: "right", render: (r) => <Delta value={r.delta} /> },
+        { key: "key", label: "scorer", icon: Percent },
+        { key: "a", label: nameOf(data.a), icon: Percent, align: "right", render: (r) => score(r.a) ?? <Dash /> },
+        { key: "b", label: nameOf(data.b), icon: Percent, align: "right", render: (r) => score(r.b) ?? <Dash /> },
+        { key: "delta", label: "delta", icon: Triangle, align: "right", render: (r) => <Delta value={r.delta} /> },
       ]
     : [];
   const caseColumns = data
     ? [
-        { key: "index", label: "#", align: "right", width: 48 },
-        { key: "input", label: "input" },
-        { key: "a", label: nameOf(data.a), align: "right", render: (r) => score(r.a) ?? <Dash /> },
-        { key: "b", label: nameOf(data.b), align: "right", render: (r) => score(r.b) ?? <Dash /> },
-        { key: "delta", label: "delta", align: "right", render: (r) => <Delta value={r.delta} /> },
+        { key: "index", label: "#", icon: Hash, align: "right", width: 48, muted: true },
+        { key: "input", label: "input", icon: ArrowDownRight },
+        { key: "a", label: nameOf(data.a), icon: Percent, align: "right", render: (r) => score(r.a) ?? <Dash /> },
+        { key: "b", label: nameOf(data.b), icon: Percent, align: "right", render: (r) => score(r.b) ?? <Dash /> },
+        { key: "delta", label: "delta", icon: Triangle, align: "right", render: (r) => <Delta value={r.delta} /> },
       ]
     : [];
 
@@ -318,6 +393,7 @@ function Compare({ api, a, b }) {
         crumb={{ label: "Experiments", to: "/experiments" }}
         loading={compare.loading}
         error={compare.error}
+        chips={data && <Chip Icon={Rows}>{count(data.cases.length)} cases</Chip>}
       >
         {data && (
           <span className="text-sm text-secondary">
@@ -333,7 +409,7 @@ function Compare({ api, a, b }) {
             <Table columns={scorerColumns} rows={scorerRows} rowKey={(r) => r.key} />
           </div>
           <div className="px-5 pt-4 text-xs font-medium text-secondary">per case</div>
-          <Table columns={caseColumns} rows={data.cases} rowKey={(r) => r.index} />
+          <Table columns={caseColumns} rows={data.cases} rowKey={(r) => r.index} rowHeight={40} />
         </div>
       )}
     </Panel>

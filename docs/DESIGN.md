@@ -71,8 +71,8 @@ Both variable fonts are imported from `@fontsource-variable/*` in `styles.css` a
 
 | Step | Size / line | Weight | Use |
 |---|---|---|---|
-| `xs` | 11 / 14 | 500 | Tags, legend labels, tooltips, table headers |
-| `sm` | 12 / 16 | 400 | Metadata, timestamps, hover-card rows |
+| `xs` | 11 / 14 | 500 | Tags, legend labels, tooltips |
+| `sm` | 12 / 16 | 400 (500 in table headers) | Metadata, timestamps, hover-card rows, table headers, toolbar chips |
 | `base` | 13 / 18 | 400 | Tables, menus, buttons, inputs |
 | `mono` | 13 / 20 | 400 | The painted prompt, case inputs and outputs, the cut prompt, judge reasons |
 | `md` | 15 / 22 | 400 | Side-panel body text |
@@ -98,7 +98,7 @@ Weight 400 for text, 500 for anything that must stand out, 600 only on page, sid
 
 ## 3. Spacing, shape, elevation
 
-- **Spacing** on a 4 px grid: 4, 8, 12, 16, 20, 24, 32, 48. Table rows 36 px; cells 12 px side padding; panels 20 px; page gutter 16 px.
+- **Spacing** on a 4 px grid: 4, 8, 12, 16, 20, 24, 32, 48. Table rows 36 px on run lists and 40 px on per-case tables (P2: a case row carries input, output and expected, and needs the air); cells 12 px side padding; header row 32 px; panels 20 px; page gutter 16 px.
 - **Radii:** 6 (inputs, chips, small buttons), 10 (buttons, cards, sidebar items), 12 (panels, dialogs).
 - **Shadows:** `shadow-pop` `0 2px 6px rgba(20,24,40,.08), 0 12px 32px rgba(20,24,40,.12)` for hover cards, menus and dialogs. Panels sit flat on the canvas with a `line` hairline; nothing else casts a shadow.
 - **Painted segments:** the soft verdict colour as background on the text run, `border-radius: 3px`, `padding: 1px 2px`, `box-decoration-break: clone` so wrapped lines keep their rounded ends. A 2 px gap between adjacent segments so block boundaries stay visible. Stage-two lines paint over their block: a line span sits inside its block span and its own colour wins.
@@ -134,7 +134,7 @@ Weight 400 for text, 500 for anything that must stand out, 600 only on page, sid
 
 - **Sidebar** 220 px, `canvas` background, hairline on the right: wordmark at the top (§0); a section label `Project` (`xs`, 500, `secondary`, uppercase tracking); four `NavLink` rows of 32 px with a 16 px Phosphor icon (regular weight) and a label: Datasets, Experiments, Ablations, Settings. The active row is a `surface-3` pill with `ink` text; inactive rows are `secondary`. At the bottom, the **spend card** (`SpendCard`, §7): a `surface-2` card with the project directory name, then `Spend` and the total cost in USD, then `3 runs · 61 % cached` and one 4 px progress bar whose fill is the cached share (`secondary` on `surface-3`; the words beside it carry the meaning). Its numbers come from `GET /api/summary` and refresh on every route change; the database path is the card's tooltip, from `GET /api/health`.
 - **Main column:** one `panel` with a 16 px canvas gutter on every side, radius 12, hairline. Title row 52 px, then the screen content. Minimum width 720 px.
-- **Title row** (`TitleRow`): the screen's type icon (Phosphor, 18 px, `secondary`) first; then, on a detail page, a breadcrumb whose parent is a link in `secondary` (`Experiments › eval v1`, the `›` in `tertiary`) and whose last part is the `xl` title; on a list page just the title. A spinner while loading, an error line underneath, actions on the right with at most one filled primary. There is no back arrow: the crumb is the way back. The `…` run menu arrives at P4.
+- **Title row** (`TitleRow`): the screen's type icon (Phosphor, 18 px, `secondary`) first; then, on a detail page, a breadcrumb whose parent is a link in `secondary` (`Experiments › eval v1`, the `›` in `tertiary`) and whose last part is the `xl` title; on a list page just the title. A spinner while loading, an error line underneath; then the **toolbar chips** (`Chip`, §7): the totals of what the screen shows, `10 cases · 60 calls · $0.12 · 42 s`, quiet `surface-2` chips with a 12 px icon each; actions on the right with at most one filled primary. There is no back arrow: the crumb is the way back. The `…` run menu arrives at P4.
 - **Right panel:** 360 px, only on the Ablation screen (the pinned segment card), the Datasets screen (case detail) and the Experiment screen (one result). Hidden under 1100 px; its content then opens in a `Dialog`. The cut-prompt panel is two columns and needs the width, so it sits in the main column under the painted prompt, not in the right panel (changed at B16).
 - **Routes** (`react-router`, browser history, served by FastAPI's `html=True` fallback): `/datasets`, `/experiments`, `/experiments/:id`, `/ablations`, `/ablations/:id`, `/settings`. `/` redirects to `/experiments`. The sidebar item "Ablations" lists ablation runs (`GET /api/experiments?kind=ablation`) and each row opens `/ablations/:id`.
 
@@ -146,12 +146,14 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 |---|---|---|---|
 | `Sidebar` | own | B14, P1 | §6: section label, `surface-3` active pill, `SpendCard` at the bottom |
 | `SpendCard` | own | P1 | §6: project name, `Spend` + USD, `runs · % cached`, 4 px cached-share bar; tooltip is the database path; `secondary` error line when the summary request fails |
-| `TitleRow` | own | B14, P1 | `Icon` (the screen's type icon), optional `crumb={{ label, to }}` rendered as a link before the title, title at `xl` 600, optional spinner, optional `danger` error line, actions slot |
+| `TitleRow` | own | B14, P1 | `Icon` (the screen's type icon), optional `crumb={{ label, to }}` rendered as a link before the title, title at `xl` 600, optional spinner, optional `danger` error line, `chips` slot after the title, actions slot on the right |
+| `Chip` | own | P2 | 24 px, `surface-2`, radius 6, `sm` text in `ink` with a 12 px `secondary` icon before it; one fact per chip (`10 cases`, `60 calls`, `$0.12`, `42 s`, `151 → 21 tokens`); never coloured |
 | `EmptyState` | own | B14 | §5 |
 | `Panel` | own | B15 | the main column (§6); every screen renders one, plus an optional `SidePanel` beside it |
 | `Dash` | own | B15 | the null value of §2: an en dash in `tertiary` plus the word |
 | `SearchInput` | own | B15 | 32 px, leading icon, filters client-side |
-| `Table` | own | B15 | 36 px rows, `xs` headers in `secondary`, hairlines, numbers right-aligned in tabular figures, sortable by header click, row click selects |
+| `Table` | own | B15, P2 | `sm` 500 headers in `secondary`, each with a 12 px **type glyph** from the column (`icon`): `#` Hash for indexes, `↘` ArrowDownRight input, `↗` ArrowUpRight output, `=` Equals expected, `⌂` Tag tags, `%` Percent scorers and scores, `$` CurrencyDollar cost, `◷` Clock date, Timer duration, Lightning calls, Cpu model, TextAa name, Stack kind, Pulse status, Rows cases, Repeat repeat, GitBranch variant, TextAlignLeft context, Triangle delta. `rowHeight` 36 (lists) or 40 (per-case). `numbered` adds a leading muted row-number column (1-based after sorting, `tertiary`, 40 px); a column with `muted: true` renders in `tertiary` (the case index). Hairlines, numbers right-aligned in tabular figures, sortable by header click, row click selects. A leading checkbox column exists only on the runs table (the compare picker) |
+| `ColumnPicker` | Radix Popover | P2 | a `btn-secondary` reading `Columns (7)` (visible count) that opens a popover of checkboxes, one per hideable column (`fixed: true` columns are not listed), with `Reset`; state from `ui/useColumns.js`, which keeps the hidden keys in `localStorage` under `promptgauge.columns.<screen>` (`runs`, `results`, `datasets`); a hidden column is also dropped from the table's sort |
 | `Tag` | own | B15 | 11 px, 500, `surface-2` background with `ink` text; case tags and experiment `kind` |
 | `StatusTag` | `Tag` | B15, P1 | icon + word on the soft tint: `✓ done` ok, `△ partial` warn, `■ stopped: reason` warn, `◌ running` secondary (Phosphor Check, Warning, Square, CircleDashed at 11 px) |
 | `SidePanel` | own | B15 | the 360 px right column; title, subtitle, close, scrolling body of `CodeBlock`s |

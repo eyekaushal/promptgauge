@@ -1,7 +1,19 @@
-import { Scissors } from "@phosphor-icons/react";
+import {
+  Clock,
+  Cpu,
+  CurrencyDollar,
+  Lightning,
+  Percent,
+  Pulse,
+  Rows,
+  Scissors,
+  TextAa,
+  TextColumns,
+} from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
+import Chip from "../ui/Chip.jsx";
 import CutPromptPanel from "../ui/CutPromptPanel.jsx";
 import Dash from "../ui/Dash.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
@@ -32,22 +44,34 @@ function AblationList({ api }) {
   const runs = useRequest(() => api.experiments("ablation"), [api]);
   const rows = runs.data ?? [];
   const columns = [
-    { key: "name", label: "name", render: (r) => r.name ?? <Dash /> },
-    { key: "model", label: "model" },
-    { key: "score", label: "baseline", align: "right", render: (r) => score(r.score) ?? <Dash /> },
-    { key: "cases", label: "cases", align: "right", render: (r) => count(r.cases) },
-    { key: "calls", label: "calls", align: "right", sortValue: (r) => r.totals.calls, render: (r) => count(r.totals.calls) },
-    { key: "cost", label: "cost", align: "right", sortValue: (r) => r.totals.cost_usd, render: (r) => usd(r.totals.cost_usd) },
-    { key: "created_at", label: "date", render: (r) => dateTime(r.created_at) },
-    { key: "status", label: "status", render: (r) => <StatusTag status={r.status} stoppedReason={r.stopped_reason} /> },
+    { key: "name", label: "name", icon: TextAa, render: (r) => r.name ?? <Dash /> },
+    { key: "model", label: "model", icon: Cpu },
+    { key: "score", label: "baseline", icon: Percent, align: "right", render: (r) => score(r.score) ?? <Dash /> },
+    { key: "cases", label: "cases", icon: Rows, align: "right", render: (r) => count(r.cases) },
+    { key: "calls", label: "calls", icon: Lightning, align: "right", sortValue: (r) => r.totals.calls, render: (r) => count(r.totals.calls) },
+    { key: "cost", label: "cost", icon: CurrencyDollar, align: "right", sortValue: (r) => r.totals.cost_usd, render: (r) => usd(r.totals.cost_usd) },
+    { key: "created_at", label: "date", icon: Clock, render: (r) => dateTime(r.created_at) },
+    { key: "status", label: "status", icon: Pulse, render: (r) => <StatusTag status={r.status} stoppedReason={r.stopped_reason} /> },
   ];
   return (
     <Panel>
-      <TitleRow title="Ablations" Icon={Scissors} loading={runs.loading} error={runs.error} />
+      <TitleRow
+        title="Ablations"
+        Icon={Scissors}
+        loading={runs.loading}
+        error={runs.error}
+        chips={
+          rows.length > 0 && (
+            <Chip Icon={Scissors}>
+              {count(rows.length)} {rows.length === 1 ? "ablation" : "ablations"}
+            </Chip>
+          )
+        }
+      />
       {!runs.loading && rows.length === 0 ? (
         <EmptyState Icon={Scissors} title="No ablations yet" command={RUN_COMMAND} />
       ) : (
-        <Table columns={columns} rows={rows} rowKey={(r) => r.id} onRowClick={(r) => navigate(`/ablations/${r.id}`)} />
+        <Table columns={columns} rows={rows} rowKey={(r) => r.id} numbered onRowClick={(r) => navigate(`/ablations/${r.id}`)} />
       )}
     </Panel>
   );
@@ -93,6 +117,23 @@ function AblationDetail({ api, id }) {
           crumb={{ label: "Ablations", to: "/ablations" }}
           loading={ablation.loading || settings.loading}
           error={ablation.error ?? settings.error ?? saveError}
+          chips={
+            data && (
+              <>
+                <Chip Icon={Rows}>{count(data.experiment.cases)} cases</Chip>
+                <Chip Icon={Lightning} title={`${count(data.totals.cached)} of these were cache hits`}>
+                  {count(data.totals.calls)} calls
+                  <span className="text-tertiary">· {count(data.totals.cached)} cached</span>
+                </Chip>
+                <Chip Icon={CurrencyDollar}>{usd(data.totals.cost_usd)}</Chip>
+                {data.ablation && (
+                  <Chip Icon={TextColumns} title="prompt tokens before → after the cut">
+                    {count(data.ablation.tokens_before)} → {count(data.ablation.tokens_after)} tokens
+                  </Chip>
+                )}
+              </>
+            )
+          }
         >
           {data && <StatusTag status={data.experiment.status} stoppedReason={data.experiment.stopped_reason} />}
           {data && <Slider value={current} onChange={setDelta} />}
@@ -114,7 +155,6 @@ function AblationDetail({ api, id }) {
               <StatTile label="tokens" value={data.ablation ? `${count(data.ablation.tokens_before)} → ${count(data.ablation.tokens_after)}` : "–"} />
               <StatTile label="baseline" value={score(baseline) ?? "–"} />
               <StatTile label="cut" value={score(data.ablation?.cut_score) ?? "–"} hint={data.ablation ? (data.ablation.confirmed ? "confirmed" : "not confirmed") : "no confirmation run"} />
-              <StatTile label="cost" value={usd(data.totals.cost_usd)} hint={`${count(data.totals.calls)} calls · ${count(data.totals.cached)} cached`} />
             </div>
             <div className="flex flex-col gap-2 px-5 pt-4">
               <VerdictLegend legend={data.legend} counts={counts} />

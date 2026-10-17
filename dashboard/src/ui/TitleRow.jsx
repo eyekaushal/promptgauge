@@ -3,7 +3,8 @@ import { Link } from "react-router";
 
 /**
  * 52 px: the screen's type icon, an optional breadcrumb parent (`crumb={{ label, to }}`), the
- * page title at xl 600, a spinner while loading, an error line, actions on the right.
+ * page title at xl 600, a spinner while loading, toolbar chips after the title, an error line,
+ * actions on the right.
  */
 export default function TitleRow({
   title,
@@ -11,6 +12,7 @@ export default function TitleRow({
   crumb = null,
   loading = false,
   error = null,
+  chips = null,
   children = null,
 }) {
   return (
@@ -36,6 +38,7 @@ export default function TitleRow({
             aria-label="loading"
           />
         )}
+        {chips && <div className="ml-2 flex shrink-0 items-center gap-1.5">{chips}</div>}
         <div className="ml-auto flex shrink-0 items-center gap-2 pl-3">{children}</div>
       </div>
       {error && <div className="pb-3 text-sm text-danger">{error.message}</div>}
