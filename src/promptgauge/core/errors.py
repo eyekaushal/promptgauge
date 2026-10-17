@@ -25,5 +25,9 @@ class ScorerError(PromptgaugeError):
     """A scorer was misconfigured (unknown name, missing rubric, unreadable schema)."""
 
 
+class AblationError(PromptgaugeError):
+    """An ablation could not measure a variant: every case failed, nothing to compare."""
+
+
 class PromptError(PromptgaugeError):
     """A segment was applied to prompt text it was not cut from (offsets or text do not match)."""

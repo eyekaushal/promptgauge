@@ -39,6 +39,10 @@ class GroundedScorer(Scorer):
     def applies_to(self, case: Case) -> bool:
         return case.context is not None
 
+    @property
+    def uses_judge(self) -> bool:
+        return True
+
     def bind(self, judge: Judge) -> None:
         self._judge = judge
 

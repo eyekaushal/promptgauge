@@ -13,6 +13,11 @@ from rich.console import Console
 from rich.progress import BarColumn, TextColumn
 from rich.progress import Progress as ProgressBar
 
+from promptgauge.ablate.ablation import Ablation
+from promptgauge.ablate.ablation_planner import AblationPlanner
+from promptgauge.ablate.ablation_report import AblationReport
+from promptgauge.ablate.budget_planner import BudgetPlanner
+from promptgauge.ablate.prompt_cutter import PromptCutter
 from promptgauge.cache.call_cache import CallCache
 from promptgauge.cli.eval_table import EvalTable
 from promptgauge.config.config import Config
@@ -27,12 +32,17 @@ from promptgauge.db.database import Database
 from promptgauge.db.experiment_repository import ExperimentRepository
 from promptgauge.db.migrator import Migrator
 from promptgauge.db.result_repository import ResultRepository
+from promptgauge.db.segment_repository import SegmentRepository
+from promptgauge.db.verdict_repository import VerdictRepository
+from promptgauge.prompt.prompt_segmenter import PromptSegmenter
 from promptgauge.provider.anthropic_provider import AnthropicProvider
 from promptgauge.provider.provider import Provider
 from promptgauge.runner.eval_result import EvalResult
 from promptgauge.runner.evaluator import Evaluator, ProgressCallback
 from promptgauge.scorers import contains, exact, grounded, json_schema, rubric
 from promptgauge.scorers.scorer import Scorer
+from promptgauge.stats.bootstrap import Bootstrap
+from promptgauge.stats.verdict_rule import VerdictRule
 
 DB_RELATIVE_PATH = Path(".promptgauge") / "promptgauge.db"
 
@@ -87,28 +97,10 @@ def run_evaluation(
 ) -> EvalResult:
     """Wire the evaluator for one run and execute it. Shared by the CLI and the SDK."""
     log = logger or Logger()
-    pricing = Pricing()
-    for model in (config.model, config.judge):
-        pricing.require(model)
-    # Fail on a missing key before touching the database, so a bad shell leaves no trace.
-    live = provider or build_provider(pricing, log)
+    live = _live_provider(config, log, provider)
     database = open_database(project_dir)
     try:
-        cache = CallCache(
-            live,
-            CallRepository(database),
-            log,
-            concurrency=config.concurrency,
-        )
-        evaluator = Evaluator(
-            cache,
-            ExperimentRepository(database),
-            CaseRepository(database),
-            ResultRepository(database),
-            CallRepository(database),
-            log,
-            progress,
-        )
+        evaluator = _build_evaluator(database, live, config, log, progress)
         dataset = DatasetLoader().load(config.dataset)
         prompt_text = config.prompt.read_text(encoding="utf-8")
         return asyncio.run(
@@ -126,6 +118,86 @@ def run_evaluation(
         )
     finally:
         database.close()
+
+
+def run_ablation(
+    config: Config,
+    project_dir: Path,
+    scorers: list[Scorer],
+    *,
+    name: str | None = None,
+    logger: Logger | None = None,
+    progress: ProgressCallback | None = None,
+    provider: Provider | None = None,
+) -> AblationReport:
+    """Wire the ablation for one run and execute it. Shared by the CLI and the SDK.
+
+    Raises BudgetExceededError before any call when the estimate is over `budget_usd`.
+    """
+    log = logger or Logger()
+    live = _live_provider(config, log, provider)
+    database = open_database(project_dir)
+    try:
+        dataset = DatasetLoader().load(config.dataset)
+        prompt_text = config.prompt.read_text(encoding="utf-8")
+        segmenter = PromptSegmenter()
+        ablation = Ablation(
+            _build_evaluator(database, live, config, log, None),
+            segmenter,
+            AblationPlanner(segmenter, len(dataset.cases), config.repeats),
+            BudgetPlanner(Pricing(), config.budget_usd),
+            Bootstrap(),
+            VerdictRule(config.delta),
+            PromptCutter(),
+            ExperimentRepository(database),
+            SegmentRepository(database),
+            VerdictRepository(database),
+            CallRepository(database),
+            log,
+            progress,
+        )
+        return asyncio.run(
+            ablation.run(
+                name=name or f"ablate {config.prompt.name}",
+                prompt_text=prompt_text,
+                dataset=dataset,
+                model=config.model,
+                judge_model=config.judge,
+                scorers=scorers,
+                repeats=config.repeats,
+                temperature=config.temperature,
+                config_json=config.model_dump_json(),
+            )
+        )
+    finally:
+        database.close()
+
+
+def _live_provider(config: Config, log: Logger, provider: Provider | None) -> Provider:
+    pricing = Pricing()
+    for model in (config.model, config.judge):
+        pricing.require(model)
+    # Fail on a missing key before touching the database, so a bad shell leaves no trace.
+    return provider or build_provider(pricing, log)
+
+
+def _build_evaluator(
+    database: Database,
+    provider: Provider,
+    config: Config,
+    log: Logger,
+    progress: ProgressCallback | None,
+) -> Evaluator:
+    cache = CallCache(provider, CallRepository(database), log, concurrency=config.concurrency)
+    return Evaluator(
+        cache,
+        ExperimentRepository(database),
+        CaseRepository(database),
+        ResultRepository(database),
+        CallRepository(database),
+        log,
+        progress,
+    )
 
 
 @app.command()

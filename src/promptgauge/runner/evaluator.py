@@ -49,6 +49,79 @@ class Evaluator:
         self._log = logger
         self._progress = progress
 
+    def start(
+        self,
+        *,
+        kind: str,
+        name: str,
+        prompt_text: str,
+        dataset: Dataset,
+        model: str,
+        judge_model: str,
+        scorers: list[Scorer],
+        config_json: str,
+    ) -> tuple[int, list[int]]:
+        """Create the experiment row, store the cases and bind the judge. Returns the experiment
+        id and the case ids in dataset order. Shared by eval runs and ablations."""
+        experiment_id = self._experiments.create(
+            kind=kind,
+            name=name,
+            prompt_hash=hashlib.sha256(prompt_text.encode("utf-8")).hexdigest(),
+            prompt_text=prompt_text,
+            dataset_hash=dataset.hash,
+            model=model,
+            judge=judge_model,
+            config_json=config_json,
+        )
+        case_ids = self._cases.upsert_many(dataset.hash, [c.to_row() for c in dataset.cases])
+        judge = Judge(self._cache, judge_model, experiment_id, self._log)
+        for scorer in scorers:
+            scorer.bind(judge)
+        return experiment_id, case_ids
+
+    async def measure(
+        self,
+        experiment_id: int,
+        *,
+        prompt_text: str,
+        dataset: Dataset,
+        case_ids: list[int],
+        model: str,
+        temperature: float,
+        scorers: list[Scorer],
+        repeats: int,
+        variant_id: int | None = None,
+        store: bool = True,
+        progress: ProgressCallback | None = None,
+    ) -> list[CaseRun]:
+        """Run and score every (case, repeat) for one prompt text. `variant_id` labels the result
+        rows (None = baseline); `store=False` measures without writing them (the confirmation
+        run). A failed call marks that run failed; the rest continue."""
+        total = len(dataset.cases) * repeats
+        done = 0
+
+        async def run_one(case: Case, case_id: int, repeat_index: int) -> CaseRun:
+            nonlocal done
+            run = await self._run_one(
+                case, case_id, repeat_index, prompt_text, model, temperature, scorers, experiment_id
+            )
+            done += 1
+            if progress is not None:
+                progress(done, total, self._calls.totals(experiment_id)["cost_usd"])
+            return run
+
+        runs = await asyncio.gather(
+            *(
+                run_one(case, case_id, repeat_index)
+                for case, case_id in zip(dataset.cases, case_ids, strict=True)
+                for repeat_index in range(repeats)
+            )
+        )
+        runs.sort(key=lambda r: (r.case.index, r.repeat_index))
+        if store:
+            self._store_results(experiment_id, runs, variant_id)
+        return runs
+
     async def run(
         self,
         *,
@@ -67,44 +140,27 @@ class Evaluator:
         A failed call marks that run failed and the experiment `partial`; the rest continue.
         """
         started = time.monotonic()
-        experiment_id = self._experiments.create(
+        experiment_id, case_ids = self.start(
             kind="eval",
             name=name,
-            prompt_hash=hashlib.sha256(prompt_text.encode("utf-8")).hexdigest(),
             prompt_text=prompt_text,
-            dataset_hash=dataset.hash,
+            dataset=dataset,
             model=model,
-            judge=judge_model,
+            judge_model=judge_model,
+            scorers=scorers,
             config_json=config_json,
         )
-        case_ids = self._cases.upsert_many(dataset.hash, [c.to_row() for c in dataset.cases])
-        judge = Judge(self._cache, judge_model, experiment_id, self._log)
-        for scorer in scorers:
-            scorer.bind(judge)
-
-        total = len(dataset.cases) * repeats
-        done = 0
-
-        async def run_one(case: Case, case_id: int, repeat_index: int) -> CaseRun:
-            nonlocal done
-            run = await self._run_one(
-                case, case_id, repeat_index, prompt_text, model, temperature, scorers, experiment_id
-            )
-            done += 1
-            if self._progress is not None:
-                self._progress(done, total, self._calls.totals(experiment_id)["cost_usd"])
-            return run
-
-        runs = await asyncio.gather(
-            *(
-                run_one(case, case_id, repeat_index)
-                for case, case_id in zip(dataset.cases, case_ids, strict=True)
-                for repeat_index in range(repeats)
-            )
+        runs = await self.measure(
+            experiment_id,
+            prompt_text=prompt_text,
+            dataset=dataset,
+            case_ids=case_ids,
+            model=model,
+            temperature=temperature,
+            scorers=scorers,
+            repeats=repeats,
+            progress=self._progress,
         )
-        runs.sort(key=lambda r: (r.case.index, r.repeat_index))
-        self._store_results(experiment_id, runs)
-
         status = "partial" if any(r.failed for r in runs) else "done"
         self._experiments.finish(experiment_id, status)
         totals = self._calls.totals(experiment_id)
@@ -160,11 +216,14 @@ class Evaluator:
             scores=scores,
         )
 
-    def _store_results(self, experiment_id: int, runs: list[CaseRun]) -> None:
+    def _store_results(
+        self, experiment_id: int, runs: list[CaseRun], variant_id: int | None
+    ) -> None:
         rows = [
             {
                 "case_id": run.case_id,
                 "repeat_index": run.repeat_index,
+                "variant_id": variant_id,
                 "scorer": key,
                 "score": result.score,
                 "reason": result.reason,
