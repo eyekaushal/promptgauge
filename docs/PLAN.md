@@ -259,11 +259,11 @@ Claude updates this table at the end of every block. New sessions resume from th
 | B00 | ☑ | 17 Oct 2026. Skeleton + tooling; `uv sync && uv run pytest` green (0 tests), ruff clean, wheel builds. Dev deps moved to `[dependency-groups]`; entry point fixed to `cli.main:app`. |
 | B01 | ✂ | Cut 17 Oct 2026 (Kaushal's call): no GitHub Actions. `.github/` deleted; lint and tests run locally before every merge. |
 | B02 | ☑ | 17 Oct 2026. core (errors, Logger, clock), config (Config, ScorerSpec, Pricing dated 2026-10-17), db (Database, Migrator, 001_init.sql, six repositories). 60 tests. `call.hash` is indexed, not the PK, so a cache hit in a later experiment gets its own `cached=1` row (F2.6). |
-| B03 | ☐ | |
-| B04 | ☐ | |
-| B05 | ☐ | |
-| B06 | ☐ | |
-| B07 | ☐ | |
+| B03 | ☑ | 17 Oct 2026. dataset (`Case`, `DatasetLoader` → `Dataset(path, hash, cases)`). Hash = SHA-256 of canonical JSON per case, so whitespace, key order and blank lines do not change it; content and order do. Bad line → `DatasetError` as `path:line: field: message`. `expected: ""` / `context: ""` become `None` so scorers skip them (F3.1, F3.4). 92 tests. |
+| B04 | ☑ | 17 Oct 2026. provider (`Completion`, `Provider` protocol, `AnthropicProvider`, `FakeProvider`), cache (`CallCache`). `CallCache.complete()` is async, owns the `concurrency` semaphore (F2.5; hits never wait), returns a `Completion` with `cached` and `call_hash`; the key ignores `max_tokens` and `experiment_id`. Provider errors propagate without a call row. Refusals are returned as output, not raised. 116 tests. Live smoke (haiku, 1 call + 1 hit) still to be run by Kaushal: no key in the dev shell. |
+| B05 | ☑ | 17 Oct 2026. scorers (`ScoreResult`, `Scorer` base, `ContainsScorer`, `ExactScorer`, `JsonSchemaScorer`, factories `contains()/exact()/json_schema()`). `Scorer.score()` is async so judge scorers share one interface at B06; `applies_to(case)` is the skip rule (no row, not a zero). `normalise()` is shared by contains and exact. Schema file is validated at construction (`ScorerError`). `JsonSchemaScorer.key` uses the schema file name. 166 tests. |
+| B06 | ☑ | 17 Oct 2026. scorers (`Judge`, `RubricScorer`, `GroundedScorer`, factories `rubric()/grounded()`). `Judge(cache, model, experiment_id, logger)` is built per experiment by the runner and handed to scorers via `Scorer.bind(judge)`, because SDK users build scorers before a run exists. Retry uses repeat index 1 so it cannot hit the cached malformed answer. `parse_json()` (fence-tolerant) moved to `scorer.py`, shared with `JsonSchemaScorer`. Grounded: no claims → 1.0. 209 tests. |
+| B07 | ☑ | 17 Oct 2026. runner (`CaseRun`, `EvalResult` + `CaseSummary`, `Evaluator`), cli (`main.py` composition root: `build_provider`, `build_scorers`, `open_database`, `run_evaluation`; `EvalTable`; rich progress line), `sdk.evaluate()` reuses `run_evaluation`. Experiment status `partial` on any failed call; exit 1. Totals from the call table. Judge verdicts are shared across repeats with identical outputs (same cache key). Config now resolves a `rubric:` value to a path when that file sits next to the config. 230 tests. **Milestone 1 live run pending** (no key in the dev shell). |
 | B08 | ☐ | |
 | B09 | ☐ | |
 | B10 | ☐ | |
