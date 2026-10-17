@@ -27,19 +27,17 @@ export default function App() {
   return (
     <div className="flex h-full min-w-[720px]">
       <Sidebar health={health} />
-      <main className="min-w-0 flex-1 p-4">
-        <div className="flex h-full min-h-0 flex-col rounded-lg border border-line bg-panel">
-          <Routes>
-            <Route path="/" element={<Navigate to="/experiments" replace />} />
-            <Route path="/datasets" element={<Datasets api={api} />} />
-            <Route path="/experiments" element={<Experiments api={api} />} />
-            <Route path="/experiments/:id" element={<Experiments api={api} />} />
-            <Route path="/ablations" element={<Ablation api={api} />} />
-            <Route path="/ablations/:id" element={<Ablation api={api} />} />
-            <Route path="/settings" element={<Settings api={api} />} />
-            <Route path="*" element={<Navigate to="/experiments" replace />} />
-          </Routes>
-        </div>
+      <main className="flex min-w-0 flex-1 gap-4 p-4">
+        <Routes>
+          <Route path="/" element={<Navigate to="/experiments" replace />} />
+          <Route path="/datasets" element={<Datasets api={api} />} />
+          <Route path="/experiments" element={<Experiments api={api} />} />
+          <Route path="/experiments/:id" element={<Experiments api={api} />} />
+          <Route path="/ablations" element={<Ablation api={api} />} />
+          <Route path="/ablations/:id" element={<Ablation api={api} />} />
+          <Route path="/settings" element={<Settings api={api} />} />
+          <Route path="*" element={<Navigate to="/experiments" replace />} />
+        </Routes>
       </main>
     </div>
   );

@@ -10,6 +10,7 @@ def test_list_is_newest_first_with_scores_and_totals(client: TestClient, seeded)
     # Run scores: case 0 → (1.0+0.5)/2 and 1.0 ; case 1 → (0.5+0.25)/2 and 0.5. Mean = 0.65625.
     assert first["score"] == pytest.approx(0.65625)
     assert first["scorer_means"] == {"contains": 0.75, "rubric:helpful": pytest.approx(0.375)}
+    assert first["cases"] == 2
     assert first["totals"] == {
         "calls": 4,
         "cached": 2,
@@ -30,8 +31,9 @@ def test_get_carries_prompt_config_and_per_case_scores(client: TestClient, seede
     assert body["prompt_text"].startswith("# Role")
     assert body["config"] == {"delta": 0.05, "repeats": 2}
     assert body["repeats"] == 2
-    assert [c["index"] for c in body["cases"]] == [0, 1]
-    case_0 = body["cases"][0]
+    assert body["cases"] == 2
+    assert [c["index"] for c in body["case_scores"]] == [0, 1]
+    case_0 = body["case_scores"][0]
     assert case_0["input"] == "hello"
     assert case_0["score"] == pytest.approx(0.875)
     assert case_0["scorer_means"] == {"contains": 1.0, "rubric:helpful": 0.5}

@@ -76,7 +76,7 @@ class ExperimentsRoutes:
             prompt_text=row["prompt_text"],
             config=json.loads(row["config_json"]),
             repeats=max((c.repeats for c in cases), default=0),
-            cases=cases,
+            case_scores=cases,
         )
 
     def list_results(self, experiment_id: int) -> list[ResultOut]:
@@ -142,6 +142,7 @@ class ExperimentsRoutes:
         return ExperimentSummary(
             score=scores.score,
             scorer_means=scores.scorer_means(),
+            cases=len(scores.per_case()),
             totals=Totals(**self._calls.totals(row["id"])),
             **row,
         )

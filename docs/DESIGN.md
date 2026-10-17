@@ -142,10 +142,13 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 | `Sidebar` | own | B14 | §6 |
 | `TitleRow` | own | B14 | title, optional spinner, optional `danger` error line, actions slot |
 | `EmptyState` | own | B14 | §5 |
+| `Panel` | own | B15 | the main column (§6); every screen renders one, plus an optional `SidePanel` beside it |
+| `Dash` | own | B15 | the null value of §2: an en dash in `tertiary` plus the word |
+| `SearchInput` | own | B15 | 32 px, leading icon, filters client-side |
 | `Table` | own | B15 | 36 px rows, `xs` headers in `secondary`, hairlines, numbers right-aligned in tabular figures, sortable by header click, row click selects |
 | `Tag` | own | B15 | 11 px, 500, `surface-2` background with `ink` text; case tags and experiment `kind` |
 | `StatusTag` | `Tag` | B15 | `done` ok, `partial` warn, `stopped` warn with `stopped_reason`, `running` secondary |
-| `SidePanel` | own | B15 | the 360 px right column; title, close, mono body |
+| `SidePanel` | own | B15 | the 360 px right column; title, subtitle, close, scrolling body of `CodeBlock`s |
 | `StatTile` | own | B16 | one number with an `xs` label; the totals row |
 | `VerdictLegend` | own | B16 | four swatches with the word beside each, always visible on the Ablation screen |
 | `SegmentSpan` | own | B16 | one painted run; `data-verdict`; hover opens the card; click pins it |
@@ -167,14 +170,14 @@ Rules for every component:
 
 ## 8. Data → screen (the API is the contract)
 
-All requests go through `dashboard/src/api/ApiClient.js`, one method per route, which throws `ApiError(status, detail)` on anything but 2xx. Screens hold request state as `{ data, error, loading }`.
+All requests go through `dashboard/src/api/ApiClient.js`, one method per route, which throws `ApiError(status, detail)` on anything but 2xx. Screens hold request state as `{ data, error, loading }` through `ui/useRequest.js`; `ui/format.js` holds the §2 formats.
 
 | Screen | Route | Fields used |
 |---|---|---|
 | Datasets | `GET /api/datasets`, `GET /api/datasets/{hash}/cases` | `dataset_hash` (first 8 chars shown, full on hover), `case_count`, `first_seen`; `index`, `input`, `expected`, `context`, `tags`. Search filters `input`, `expected`, `context` and tags client-side. |
-| Experiments | `GET /api/experiments` | `name`, `kind`, `model`, `scorer_means` (one column per key), `score`, `totals.calls`, `totals.cached`, `totals.cost_usd`, `created_at`, `finished_at` (duration = finished − created), `status`, `stopped_reason`. |
-| Experiment | `GET /api/experiments/{id}`, `GET /api/experiments/{id}/results` | header from the detail; the per-case table groups result rows by `case_index` then `repeat_index`: `input` (from `cases`), `output`, `expected` (from the dataset), one cell per `scorer` with `score` and `reason`; `score: null` cells are `danger` soft with the word "failed". Rows with `variant_id` not null are hidden behind a "show variants" toggle (ablation runs only). |
-| Compare | `GET /api/experiments/compare?a=&b=` | `a`, `b` summaries; `scorers[key].{a,b,delta}`; `cases[].{index,input,a,b,delta}`; deltas signed. |
+| Experiments | `GET /api/experiments` | `name`, `kind`, `model`, `scorer_means` (one column per key), `score`, `cases`, `totals.calls`, `totals.cached`, `totals.cost_usd`, `created_at`, `finished_at` (duration = finished − created), `status`, `stopped_reason`. |
+| Experiment | `GET /api/experiments/{id}`, `GET /api/experiments/{id}/results` | header from the detail; the per-case table groups result rows by `case_index` then `repeat_index`: `input` (from `case_scores`), `output`, `expected` (from the dataset), one cell per `scorer` with `score` and `reason`; `score: null` cells are `danger` soft with the word "failed". Rows with `variant_id` not null are hidden behind a "show variants" toggle (ablation runs only). |
+| Compare (`/experiments?a=&b=`, reached by ticking two rows) | `GET /api/experiments/compare?a=&b=` | `a`, `b` summaries; `scorers[key].{a,b,delta}`; `cases[].{index,input,a,b,delta}`; deltas signed. |
 | Ablation | `GET /api/ablations/{id}` | `prompt_text` painted by `segments[].{start_offset,end_offset,level,verdict}`; `delta` seeds the slider; `legend` is the words; `ablation.*` fills the cut panel; `totals`; `experiment.status` / `stopped_reason` drive the banner. |
 | Settings | `GET /api/settings`, `PUT /api/settings` | `config.{model,judge,budget_usd,delta,repeats}`, `api_key_present` (word: present / missing, never the key), `calls_per_month`, `inr_rate`. |
 

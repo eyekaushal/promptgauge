@@ -66,6 +66,7 @@ class ExperimentSummary(BaseModel):
     finished_at: str | None
     score: float | None
     scorer_means: dict[str, float | None]
+    cases: int
     totals: Totals
 
 
@@ -75,7 +76,7 @@ class ExperimentDetail(ExperimentSummary):
     prompt_text: str
     config: dict[str, Any]
     repeats: int
-    cases: list[CaseScore]
+    case_scores: list[CaseScore]
 
 
 class ResultOut(BaseModel):
