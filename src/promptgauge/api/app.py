@@ -4,7 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from promptgauge.api.ablations_routes import AblationsRoutes
@@ -78,19 +78,32 @@ class App:
         return HealthOut(status="ok", database=self._db.path)
 
     def _mount_static(self, app: FastAPI) -> None:
-        # The built dashboard is optional in a dev checkout; without it `/` says so instead of
-        # failing at startup.
-        if (self._static_dir / "index.html").is_file():
-            app.mount("/", StaticFiles(directory=self._static_dir, html=True), name="dashboard")
-            return
+        # The built dashboard is optional in a dev checkout; without it every page says so
+        # instead of failing at startup. With it, the hashed assets are served as files and every
+        # other path gets index.html, so a deep link like /ablations/3 opens the SPA route.
+        index = self._static_dir / "index.html"
+        assets = self._static_dir / "assets"
+        if assets.is_dir():
+            app.mount("/assets", StaticFiles(directory=assets), name="assets")
 
-        async def missing() -> PlainTextResponse:
-            return PlainTextResponse(
-                "dashboard not built: run `cd dashboard && npm install && npm run build`",
-                status_code=404,
-            )
+        async def page(path: str) -> Response:
+            if path == "api" or path.startswith("api/"):
+                return JSONResponse(status_code=404, content={"detail": f"not found: /{path}"})
+            if not index.is_file():
+                return PlainTextResponse(
+                    "dashboard not built: run `cd dashboard && npm install && npm run build`",
+                    status_code=404,
+                )
+            file = self._static_dir / path
+            if (
+                path
+                and file.is_file()
+                and file.resolve().is_relative_to(self._static_dir.resolve())
+            ):
+                return FileResponse(file)
+            return FileResponse(index)
 
-        app.add_api_route("/", missing, methods=["GET"], include_in_schema=False)
+        app.add_api_route("/{path:path}", page, methods=["GET"], include_in_schema=False)
 
     async def _internal_error(self, request: Request, exc: Exception) -> JSONResponse:
         # F7.4: details go to the server log, the client sees only that something failed.

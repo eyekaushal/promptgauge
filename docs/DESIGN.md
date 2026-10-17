@@ -1,12 +1,24 @@
-# promptgauge design system (v0)
+# promptgauge design system (v1)
 
-Written 17 Oct 2026, before any UI exists. This is the starting point. It is rewritten to v1 at block B14, before the first component, once the backend is done and the real data shape is known. Until then, change the rules here first, then the code.
+v0 was written 17 Oct 2026 before any UI existed. This v1 was written the same day at block B14, after the backend (B02–B13) landed, against the real API shapes in `src/promptgauge/api/models.py`. It is the law for `dashboard/`. Change the rule here first, then the code.
 
 The bar is Linear and Braintrust's experiment tables: light, dense, quiet, one accent, tables that read at a glance, monospace where text is code. The painted prompt is the one loud thing on the screen and everything else gets out of its way.
 
+## 0. Decisions made at v1
+
+| Question left open in v0 | Decision | Why |
+|---|---|---|
+| Logo and wordmark | Three 6 px discs (red, grey, green strong colours) in a row, then the word `promptgauge` in mono 13 / 500 `ink`. No image file. | The product is three colours and a word; drawing it in CSS keeps the wheel free of assets. |
+| Sidebar collapse | Does not collapse. Fixed 200 px. Below 720 px the page scrolls horizontally. | Local tool on a laptop; one less state. |
+| Hover-card layout | See §7 `HoverCard`: verdict word first, then baseline → without, delta, interval, n cases, tokens, level. | Follows the order a reader asks: what is it, how much, how sure. |
+| Cut prompt: diff or two columns | Two columns. Left: the original with removed segments painted red-soft and struck through. Right: the cut prompt as plain mono. | Deletion only (invariant 2) means the right column is the left column minus the painted runs; a diff view would say the same thing with more noise. |
+| Empty-state illustrations | None. A 20 px Phosphor icon on a `surface-2` disc. | Illustrations age; the icon set is already bundled. |
+| Language | JavaScript (`.jsx`), no TypeScript. | PLAN §8 file tree; the API models are the contract and are typed on the Python side. |
+| Stack pins | Vite 6 (Node 20.9 in the dev shell), React 19, Tailwind 4 via `@tailwindcss/vite`, `react-router` 7, `@phosphor-icons/react`, `@fontsource-variable/inter` and `@fontsource-variable/jetbrains-mono`. Radix (`radix-ui`) is added at B16 when the hover card, slider and tooltip arrive. | Each added at the block that needs it (YAGNI). |
+
 ## 1. Colour tokens
 
-Defined once in `dashboard/src/styles.css` as CSS variables and exposed to Tailwind through `@theme`. Light only. No dark theme, no `prefers-color-scheme` handling in v1.
+Defined once in `dashboard/src/styles.css` under Tailwind's `@theme` as `--color-*` so every token is a utility (`bg-canvas`, `text-secondary`, `border-line`). Light only. No dark theme, no `prefers-color-scheme` handling.
 
 ### Canvas, panels, ink
 
@@ -14,65 +26,79 @@ Defined once in `dashboard/src/styles.css` as CSS variables and exposed to Tailw
 |---|---|---|
 | `canvas` | `#f5f4f0` | Page background |
 | `panel` | `#ffffff` | Main column, side panels, cards |
-| `surface-2` | `rgba(28,28,30,0.04)` | Hover rows, input backgrounds, quiet chips |
+| `surface-2` | `rgba(28,28,30,0.04)` | Hover rows, input backgrounds, quiet chips, empty-state disc |
 | `surface-3` | `rgba(28,28,30,0.07)` | Pressed rows, selected tab underline |
-| `line` | `rgba(28,28,30,0.08)` | Hairlines between table rows, under headers |
+| `line` | `rgba(28,28,30,0.08)` | Hairlines between table rows, under headers, panel edges |
 | `line-strong` | `rgba(28,28,30,0.16)` | Input borders, slider track |
 | `ink` | `#1c1c1e` | Body text, titles, numbers |
-| `secondary` | `#6b6b70` | Metadata, hints, inactive tabs, table headers |
-| `tertiary` | `#a0a0a6` | Timestamps, placeholders |
-| `accent` | `#2f5d8a` | Selected sidebar item, primary button, links, focus ring, slider thumb |
-| `accent-soft` | `rgba(47,93,138,0.10)` | Selected row and sidebar background |
+| `secondary` | `#6b6b70` | Metadata, hints, inactive sidebar items, table headers |
+| `tertiary` | `#a0a0a6` | Timestamps, placeholders, the database path |
+| `accent` | `#2f5d8a` | Selected sidebar item bar, primary button, links, focus ring, slider thumb |
+| `accent-soft` | `rgba(47,93,138,0.10)` | Selected row and sidebar item background |
 | `accent-fg` | `#ffffff` | Text on `accent` |
 
 ### Verdict colours (the product)
 
-Each verdict has a strong colour for the legend and the hover card, and a soft colour for painting the prompt text background. Text on a soft colour is always `ink`, never the strong colour, so a long red block stays readable.
+Each verdict has a strong colour for swatches, the legend and the hover card, and a soft colour for painting prompt text. Text on a soft colour is always `ink`, never the strong colour, so a long red block stays readable.
 
-| Verdict | Strong | Soft | Word shown |
+| Verdict (`VerdictOut.verdict`) | Strong | Soft | Word shown |
 |---|---|---|---|
-| `red` | `#c0392b` | `#fbe4e1` | load-bearing |
+| `red` | `#c0392b` | `#fbe4e1` | load-bearing: removing it hurts |
 | `grey` | `#7a7a80` | `#ececee` | no measurable effect at this sample size |
 | `green` | `#2e7d4f` | `#dff2e6` | removing it helped |
-| `unmeasured` | `#a0a0a6` | transparent | not run (line inside a non-red block) |
+| unmeasured (`verdict: null`) | `#a0a0a6` | transparent | not measured (a line inside a non-red block, or the run stopped first) |
 
-Verdict colours appear only on prompt segments, the legend, the hover card and the small verdict count tiles. Never on buttons, never on backgrounds of panels, never as a banner.
+The grey wording is invariant 4 and comes from the API (`AblationOut.legend`); the UI shows that string, it does not keep its own copy. Verdict colours appear only on prompt segments, the legend, the hover card and the verdict count tiles. Never on buttons, never on panel backgrounds, never as a banner.
 
 ### Status
 
 | Token | Value | Soft | Use |
 |---|---|---|---|
-| `danger` | `#c0392b` | `#fbe4e1` | Failed case cells, `stopped: budget` banner text, `cut prompt not confirmed` |
-| `ok` | `#2e7d4f` | `#dff2e6` | `confirmed`, API key present, cached 100% |
-| `warn` | `#9a6400` | `#fff3d6` | `partial` status, estimate near budget |
+| `danger` | `#c0392b` | `#fbe4e1` | Failed result cells (`score: null`), `stopped` banner text, "cut prompt not confirmed" |
+| `ok` | `#2e7d4f` | `#dff2e6` | `confirmed`, API key present, status `done` |
+| `warn` | `#9a6400` | `#fff3d6` | Status `partial` and `stopped`, estimate near budget |
 
 ## 2. Type
 
 ```
-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", Inter, sans-serif;
-font-family-mono: "JetBrains Mono Variable", "SF Mono", Menlo, Consolas, monospace;
+--font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+--font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, Consolas, monospace;
 ```
 
-Inter Variable and JetBrains Mono Variable are bundled from `@fontsource-variable/*` and served by the local server.
+Both variable fonts are imported from `@fontsource-variable/*` in `styles.css` and bundled by Vite, so the dashboard loads nothing from the network.
 
 | Step | Size / line | Weight | Use |
 |---|---|---|---|
 | `xs` | 11 / 14 | 500 | Tags, legend labels, tooltips, table headers |
 | `sm` | 12 / 16 | 400 | Metadata, timestamps, hover-card rows |
 | `base` | 13 / 18 | 400 | Tables, menus, buttons, inputs |
-| `mono` | 13 / 20 | 400 | The painted prompt, case inputs and outputs, the cut prompt |
+| `mono` | 13 / 20 | 400 | The painted prompt, case inputs and outputs, the cut prompt, judge reasons |
 | `md` | 15 / 22 | 400 | Side-panel body text |
 | `lg` | 17 / 24 | 500 | Section titles, dialog titles |
 | `xl` | 20 / 26 | 500 | Page titles ("Ablation · system.md") |
 
-Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers use `font-variant-numeric: tabular-nums` everywhere. Scores show two decimals (`0.87`), deltas show a sign (`−0.12`), intervals as `[−0.18, −0.06]`, money as `$1.62` and `₹136`.
+Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers use `font-variant-numeric: tabular-nums` everywhere (set on `body`).
+
+### Number formats (one helper, `dashboard/src/ui/format.js`)
+
+| Value | Format | Example |
+|---|---|---|
+| score, mean, ci bound | two decimals | `0.87` |
+| delta | sign always, two decimals, true minus sign | `−0.12`, `+0.04` |
+| interval | brackets, comma, space | `[−0.18, −0.06]` |
+| USD | `$` and two decimals | `$1.62` |
+| INR | `₹` and no decimals | `₹136` |
+| tokens, cases, calls | thousands separators | `1,284` |
+| duration | seconds under 60, else `m s` | `42 s`, `3 m 05 s` |
+| `created_at` | local date and time, no seconds | `17 Oct 2026, 14:02` |
+| null | an en dash in `tertiary`, plus the word where the null has one (`failed`, `not measured`, `not run`) | `–` |
 
 ## 3. Spacing, shape, elevation
 
 - **Spacing** on a 4 px grid: 4, 8, 12, 16, 20, 24, 32, 48. Table rows 36 px; cells 12 px side padding; panels 20 px; page gutter 16 px.
 - **Radii:** 6 (inputs, chips, small buttons), 10 (buttons, cards, sidebar items), 12 (panels, dialogs).
-- **Shadows:** `shadow-pop` `0 2px 6px rgba(20,24,40,.08), 0 12px 32px rgba(20,24,40,.12)` for hover cards, menus and dialogs. Panels sit flat on the canvas with a hairline; nothing else casts a shadow.
-- **Painted segments:** the soft verdict colour as background on the text run, `border-radius: 3px`, `padding: 1px 2px`, `box-decoration-break: clone` so wrapped lines keep their rounded ends. A 2 px gap between adjacent segments so block boundaries are visible.
+- **Shadows:** `shadow-pop` `0 2px 6px rgba(20,24,40,.08), 0 12px 32px rgba(20,24,40,.12)` for hover cards, menus and dialogs. Panels sit flat on the canvas with a `line` hairline; nothing else casts a shadow.
+- **Painted segments:** the soft verdict colour as background on the text run, `border-radius: 3px`, `padding: 1px 2px`, `box-decoration-break: clone` so wrapped lines keep their rounded ends. A 2 px gap between adjacent segments so block boundaries stay visible. Stage-two lines paint over their block: a line span sits inside its block span and its own colour wins.
 
 ## 4. Motion
 
@@ -86,10 +112,10 @@ Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers 
 | Selected row / sidebar item | background `accent-soft`, 2 px `accent` bar on the left |
 | Focus (keyboard) | 2 px `accent` ring, 2 px offset; never removed |
 | Disabled | opacity 0.45, `cursor: not-allowed` |
-| Loading | a 16 px spinner beside the title; never a full-screen spinner |
-| Empty | `EmptyState`: 20 px icon on a `surface-2` disc, a 15 px title, one line of `secondary` text with the CLI command to run |
-| Error | one line of `danger` text under the control; never a toast |
-| Stopped run | a single line at the top of the Ablation screen in `warn` soft with the word, e.g. "Stopped at the budget ($2.00). 14 of 22 segments measured." |
+| Loading | a 16 px spinner beside the page title; never a full-screen spinner; tables keep their last rows |
+| Empty | `EmptyState`: 20 px icon on a `surface-2` disc, a 15 px title, one line of `secondary` text that names the CLI command to run |
+| Error (request failed) | one line of `danger` text under the title row with the API's `detail`; never a toast. A 403 says "refused: open the dashboard at 127.0.0.1:7331". |
+| Stopped run | one line at the top of the Ablation screen on `warn` soft, e.g. "Stopped: budget. 14 of 22 segments measured; the cut prompt was not confirmed." |
 
 ## 6. Layout
 
@@ -102,36 +128,68 @@ Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers 
 └────────┴───────────────────────────────────────────────┴──────────────┘
 ```
 
-- **Sidebar** 200 px: wordmark at the top, four items with a 16 px icon and a label (Datasets, Experiments, Ablation, Settings), the project directory name and the database path at the bottom in `tertiary`.
-- **Main column:** one `panel`, title row 52 px, then the screen. Minimum 720 px.
-- **Right panel:** 360 px, only on the Ablation screen (sticky hover card, then the cut-prompt panel) and the Datasets screen (case detail). Hidden under 1100 px.
+- **Sidebar** 200 px, `canvas` background, hairline on the right: wordmark at the top (§0), four `NavLink` items with a 16 px Phosphor icon (regular weight) and a label: Datasets, Experiments, Ablations, Settings. At the bottom in `tertiary` `sm`: the project directory name on one line and the database path on the next, both from `GET /api/health` (`database`; the project is its grandparent directory).
+- **Main column:** one `panel` with a 16 px canvas gutter on every side, radius 12, hairline. Title row 52 px (title `xl` on the left, actions on the right), then the screen content. Minimum width 720 px.
+- **Right panel:** 360 px, only on the Ablation screen (hover card pinned, then the cut-prompt panel) and the Datasets screen (case detail). Hidden under 1100 px; its content then opens in a `Dialog`.
+- **Routes** (`react-router`, browser history, served by FastAPI's `html=True` fallback): `/datasets`, `/experiments`, `/experiments/:id`, `/ablations`, `/ablations/:id`, `/settings`. `/` redirects to `/experiments`. The sidebar item "Ablations" lists ablation runs (`GET /api/experiments?kind=ablation`) and each row opens `/ablations/:id`.
 
-## 7. Components (`dashboard/src/ui/`, one file per component)
+## 7. Components (`dashboard/src/ui/`, one file per component, named after it)
 
-Radix primitives (`radix-ui`) styled with Tailwind; Phosphor icons (`@phosphor-icons/react`), regular weight, 16 px.
+Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, regular weight, 16 px.
 
-| Component | Built on | Notes |
-|---|---|---|
-| `Table` | own | 36 px rows, `xs` headers in `secondary`, hairlines, right-aligned numbers, sortable by click |
-| `Tag` | own | 11 px, 500, soft background with `ink` text; used for tags on cases and `kind` on experiments |
-| `VerdictLegend` | own | four swatches with the word beside each; always visible on the Ablation screen |
-| `SegmentSpan` | own | one painted run of prompt text; `data-verdict`; hover opens the card; click pins it |
-| `HoverCard` | Radix HoverCard | baseline score, score without, delta with sign, interval, `n_cases`, tokens, verdict word |
-| `Slider` | Radix Slider | the `delta` control, 0.00 to 0.20 step 0.01, value shown beside it |
-| `StatTile` | own | one number with a label, used for the totals row (segments, tokens removed, baseline, cut, cost) |
-| `Tooltip` | Radix Tooltip | 300 ms delay, `panel`, 11 px |
-| `Dialog` | Radix Dialog | 480 px, radius 12, used only for the copy confirmation and the compare picker |
-| `CodeBlock` | own | mono text, soft `surface-2`, copy button top-right |
-| `EmptyState` | own | see States |
+| Component | Built on | Block | Notes |
+|---|---|---|---|
+| `Sidebar` | own | B14 | §6 |
+| `TitleRow` | own | B14 | title, optional spinner, optional `danger` error line, actions slot |
+| `EmptyState` | own | B14 | §5 |
+| `Table` | own | B15 | 36 px rows, `xs` headers in `secondary`, hairlines, numbers right-aligned in tabular figures, sortable by header click, row click selects |
+| `Tag` | own | B15 | 11 px, 500, `surface-2` background with `ink` text; case tags and experiment `kind` |
+| `StatusTag` | `Tag` | B15 | `done` ok, `partial` warn, `stopped` warn with `stopped_reason`, `running` secondary |
+| `SidePanel` | own | B15 | the 360 px right column; title, close, mono body |
+| `StatTile` | own | B16 | one number with an `xs` label; the totals row |
+| `VerdictLegend` | own | B16 | four swatches with the word beside each, always visible on the Ablation screen |
+| `SegmentSpan` | own | B16 | one painted run; `data-verdict`; hover opens the card; click pins it |
+| `HoverCard` | Radix HoverCard | B16 | rows in this order: verdict swatch + word · `baseline → without` (`baseline_score`, `baseline_score + mean_delta`) · delta with sign · `95% interval [lo, hi]` · `n cases` · `tokens` · `block 3` / `line 2 of block 3` |
+| `Slider` | Radix Slider | B16 | the `delta` control, 0.00 to 0.20 step 0.01, value shown beside it, starts at the run's `delta` |
+| `CutPromptPanel` | own | B16 | two columns (§0), `tokens_before → tokens_after`, `cut_score [lo, hi]` beside `baseline_score`, `confirmed` / `not confirmed` word, `calls_per_month` input, USD and INR saved, primary "Copy cut prompt" button |
+| `Tooltip` | Radix Tooltip | B17 | 300 ms delay, `panel`, 11 px; on every coloured element, carrying the word |
+| `Dialog` | Radix Dialog | B17 | 480 px, radius 12; the compare picker and the narrow-screen side panel |
+| `CodeBlock` | own | B15 | mono text, `surface-2`, copy button top-right |
 
 Rules for every component:
 
-- Every colour is paired with a word. The legend names each verdict; the hover card says the word; failed cells carry "failed".
+- Every colour is paired with a word. The legend names each verdict; the hover card says the word; failed cells say "failed"; status tags say the status.
 - No AI-generated prose anywhere in the UI. Judge reasons are shown verbatim in `mono` and labelled "judge reason".
-- One primary button per view (`accent`); the rest quiet. "Copy cut prompt" is the primary on the Ablation screen.
+- One primary button per view (`accent`); the rest quiet. "Copy cut prompt" is the primary on the Ablation screen; "Save" on Settings.
 - Inputs 32 px tall, `line-strong` border, radius 6, `accent` ring on focus.
-- Tables never wrap; long inputs and outputs are truncated with an ellipsis and open in the right panel.
+- Tables never wrap; long inputs and outputs are truncated with an ellipsis and open in the side panel.
+- The dashboard never calls a model and never writes anything but `PUT /api/settings` (invariant 6).
 
-## 8. What v1 will decide (at B14)
+## 8. Data → screen (the API is the contract)
 
-Logo and wordmark; whether the sidebar collapses to icons; the exact hover-card layout once real verdict data exists; whether the cut prompt is a diff view or two columns; the empty-state illustrations. Nothing above the component table changes without a reason written here first.
+All requests go through `dashboard/src/api/ApiClient.js`, one method per route, which throws `ApiError(status, detail)` on anything but 2xx. Screens hold request state as `{ data, error, loading }`.
+
+| Screen | Route | Fields used |
+|---|---|---|
+| Datasets | `GET /api/datasets`, `GET /api/datasets/{hash}/cases` | `dataset_hash` (first 8 chars shown, full on hover), `case_count`, `first_seen`; `index`, `input`, `expected`, `context`, `tags`. Search filters `input`, `expected`, `context` and tags client-side. |
+| Experiments | `GET /api/experiments` | `name`, `kind`, `model`, `scorer_means` (one column per key), `score`, `totals.calls`, `totals.cached`, `totals.cost_usd`, `created_at`, `finished_at` (duration = finished − created), `status`, `stopped_reason`. |
+| Experiment | `GET /api/experiments/{id}`, `GET /api/experiments/{id}/results` | header from the detail; the per-case table groups result rows by `case_index` then `repeat_index`: `input` (from `cases`), `output`, `expected` (from the dataset), one cell per `scorer` with `score` and `reason`; `score: null` cells are `danger` soft with the word "failed". Rows with `variant_id` not null are hidden behind a "show variants" toggle (ablation runs only). |
+| Compare | `GET /api/experiments/compare?a=&b=` | `a`, `b` summaries; `scorers[key].{a,b,delta}`; `cases[].{index,input,a,b,delta}`; deltas signed. |
+| Ablation | `GET /api/ablations/{id}` | `prompt_text` painted by `segments[].{start_offset,end_offset,level,verdict}`; `delta` seeds the slider; `legend` is the words; `ablation.*` fills the cut panel; `totals`; `experiment.status` / `stopped_reason` drive the banner. |
+| Settings | `GET /api/settings`, `PUT /api/settings` | `config.{model,judge,budget_usd,delta,repeats}`, `api_key_present` (word: present / missing, never the key), `calls_per_month`, `inr_rate`. |
+
+### The verdict rule, repeated client-side
+
+The `delta` slider repaints without a request (F8.3). It applies the same rule as `stats/verdict_rule.py` to each segment's stored `ci_low` and `ci_high`:
+
+```
+red   if ci_high < -delta
+green if ci_low  >  delta
+grey  otherwise            (boundaries are grey)
+```
+
+This is the one place UI logic duplicates Python logic; the two must stay identical, and `tests/stats/test_verdict_rule.py`'s table is mirrored in `dashboard/src/ui/verdictRule.test.js` when the dashboard gains tests. Segments with `verdict: null` never change colour.
+
+### Money saved (cut panel)
+
+`tokens_saved = tokens_before − tokens_after`; `usd = tokens_saved × calls_per_month × input_price_per_token(model)`; `inr = usd × inr_rate`. The input price per token for the run's model is exposed by the API at B16 (read from `Pricing`, never typed into the UI); until then the panel shows tokens only.
