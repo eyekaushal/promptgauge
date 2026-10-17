@@ -73,17 +73,18 @@ class Config(BaseModel):
 
     @staticmethod
     def _resolve_scorer_paths(entries: Any, base: Path) -> Any:
-        # Only json_schema carries a path; rubric values may be a built-in name, resolved later.
+        # json_schema always carries a path. A rubric value is a built-in name unless a file of
+        # that name sits next to the config, in which case it is a custom rubric path.
         if not isinstance(entries, list):
             return entries
         resolved = []
         for entry in entries:
-            if (
-                isinstance(entry, dict)
-                and "json_schema" in entry
-                and isinstance(entry["json_schema"], str)
-            ):
-                entry = {"json_schema": str(base / entry["json_schema"])}
+            if isinstance(entry, dict) and len(entry) == 1:
+                (name, arg), *_ = entry.items()
+                if isinstance(arg, str) and (
+                    name == "json_schema" or (name == "rubric" and (base / arg).is_file())
+                ):
+                    entry = {name: str(base / arg)}
             resolved.append(entry)
         return resolved
 
