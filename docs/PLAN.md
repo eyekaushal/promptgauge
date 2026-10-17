@@ -260,7 +260,7 @@ Claude updates this table at the end of every block. New sessions resume from th
 | B01 | ✂ | Cut 17 Oct 2026 (Kaushal's call): no GitHub Actions. `.github/` deleted; lint and tests run locally before every merge. |
 | B02 | ☑ | 17 Oct 2026. core (errors, Logger, clock), config (Config, ScorerSpec, Pricing dated 2026-10-17), db (Database, Migrator, 001_init.sql, six repositories). 60 tests. `call.hash` is indexed, not the PK, so a cache hit in a later experiment gets its own `cached=1` row (F2.6). |
 | B03 | ☑ | 17 Oct 2026. dataset (`Case`, `DatasetLoader` → `Dataset(path, hash, cases)`). Hash = SHA-256 of canonical JSON per case, so whitespace, key order and blank lines do not change it; content and order do. Bad line → `DatasetError` as `path:line: field: message`. `expected: ""` / `context: ""` become `None` so scorers skip them (F3.1, F3.4). 92 tests. |
-| B04 | ☐ | |
+| B04 | ☑ | 17 Oct 2026. provider (`Completion`, `Provider` protocol, `AnthropicProvider`, `FakeProvider`), cache (`CallCache`). `CallCache.complete()` is async, owns the `concurrency` semaphore (F2.5; hits never wait), returns a `Completion` with `cached` and `call_hash`; the key ignores `max_tokens` and `experiment_id`. Provider errors propagate without a call row. Refusals are returned as output, not raised. 116 tests. Live smoke (haiku, 1 call + 1 hit) still to be run by Kaushal: no key in the dev shell. |
 | B05 | ☐ | |
 | B06 | ☐ | |
 | B07 | ☐ | |
