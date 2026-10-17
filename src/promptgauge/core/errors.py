@@ -23,3 +23,7 @@ class BudgetExceededError(PromptgaugeError):
 
 class ScorerError(PromptgaugeError):
     """A scorer was misconfigured (unknown name, missing rubric, unreadable schema)."""
+
+
+class PromptError(PromptgaugeError):
+    """A segment was applied to prompt text it was not cut from (offsets or text do not match)."""
