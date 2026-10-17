@@ -105,6 +105,7 @@ export default function Settings({ api }) {
               <EmptyState
                 Icon={GearSix}
                 title="No run yet and no promptgauge.yaml next to the server"
+                sentence="Settings shows the config of the newest run, or the promptgauge.yaml that promptgauge ui was started with."
                 command="promptgauge eval --config promptgauge.yaml"
               />
             )}

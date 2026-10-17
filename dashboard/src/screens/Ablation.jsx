@@ -1,5 +1,7 @@
 import {
+  ArrowsLeftRight,
   Clock,
+  Copy,
   Cpu,
   CurrencyDollar,
   Lightning,
@@ -7,6 +9,7 @@ import {
   Pulse,
   Rows,
   Scissors,
+  Table as TableIcon,
   TextAa,
   TextColumns,
 } from "@phosphor-icons/react";
@@ -22,8 +25,9 @@ import PaintedPrompt from "../ui/PaintedPrompt.jsx";
 import Panel from "../ui/Panel.jsx";
 import SegmentCard from "../ui/SegmentCard.jsx";
 import SidePanel from "../ui/SidePanel.jsx";
-import Slider from "../ui/Slider.jsx";
+import Menu from "../ui/Menu.jsx";
 import MetricGrid from "../ui/MetricGrid.jsx";
+import Slider from "../ui/Slider.jsx";
 import StatusTag from "../ui/StatusTag.jsx";
 import Table from "../ui/Table.jsx";
 import TitleRow from "../ui/TitleRow.jsx";
@@ -69,7 +73,12 @@ function AblationList({ api }) {
         }
       />
       {!runs.loading && rows.length === 0 ? (
-        <EmptyState Icon={Scissors} title="No ablations yet" command={RUN_COMMAND} />
+        <EmptyState
+          Icon={Scissors}
+          title="No ablations yet"
+          sentence="An ablation needs a prompt, a dataset and a budget; the planner refuses to start over the budget and says what would fit."
+          command={RUN_COMMAND}
+        />
       ) : (
         <Table columns={columns} rows={rows} rowKey={(r) => r.id} numbered onRowClick={(r) => navigate(`/ablations/${r.id}`)} />
       )}
@@ -78,12 +87,19 @@ function AblationList({ api }) {
 }
 
 function AblationDetail({ api, id }) {
+  const navigate = useNavigate();
   const ablation = useRequest(() => api.ablation(id), [api, id]);
   const settings = useRequest(() => api.settings(), [api]);
   const [delta, setDelta] = useState(null);
   const [pinnedId, setPinnedId] = useState(null);
   const [callsPerMonth, setCallsPerMonth] = useState(null);
   const [saveError, setSaveError] = useState(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timer = setTimeout(() => setCopied(false), 1200);
+    return () => clearTimeout(timer);
+  }, [copied]);
 
   const data = ablation.data;
   useEffect(() => {
@@ -137,6 +153,21 @@ function AblationDetail({ api, id }) {
         >
           {data && <StatusTag status={data.experiment.status} stoppedReason={data.experiment.stopped_reason} />}
           {data && <Slider value={current} onChange={setDelta} />}
+          {data && (
+            <Menu
+              label="ablation actions"
+              items={[
+                {
+                  label: copied ? "Copied" : "Copy prompt",
+                  Icon: Copy,
+                  keepOpen: true,
+                  onSelect: () => navigator.clipboard?.writeText(data.prompt_text).then(() => setCopied(true)),
+                },
+                { label: "Open results", Icon: TableIcon, onSelect: () => navigate(`/experiments/${id}`) },
+                { label: "Compare with…", Icon: ArrowsLeftRight, onSelect: () => navigate(`/experiments?a=${id}`) },
+              ]}
+            />
+          )}
         </TitleRow>
         {data && (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">

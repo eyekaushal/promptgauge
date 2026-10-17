@@ -3,8 +3,10 @@ import {
   ArrowUpRight,
   ArrowsLeftRight,
   Clock,
+  Copy,
   Cpu,
   CurrencyDollar,
+  DownloadSimple,
   Equals,
   Eye,
   EyeSlash,
@@ -17,23 +19,27 @@ import {
   Pulse,
   Repeat,
   Rows,
+  Scissors,
   Stack,
   TextAa,
   Timer,
   Triangle,
 } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
 import Chip from "../ui/Chip.jsx";
 import CodeBlock from "../ui/CodeBlock.jsx";
 import ColumnPicker from "../ui/ColumnPicker.jsx";
+import { downloadText, toCsv } from "../ui/csv.js";
 import Dash from "../ui/Dash.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { count, dateTime, delta, duration, score, usd } from "../ui/format.js";
+import Menu from "../ui/Menu.jsx";
 import MetricGrid from "../ui/MetricGrid.jsx";
 import Panel from "../ui/Panel.jsx";
 import Section from "../ui/Section.jsx";
+import SegmentedControl from "../ui/SegmentedControl.jsx";
 import SidePanel from "../ui/SidePanel.jsx";
 import StatusTag from "../ui/StatusTag.jsx";
 import Table from "../ui/Table.jsx";
@@ -55,13 +61,23 @@ export default function Experiments({ api }) {
   const b = params.get("b");
   if (id) return <ExperimentDetail api={api} id={Number(id)} />;
   if (a && b) return <Compare api={api} a={Number(a)} b={Number(b)} />;
-  return <RunsTable api={api} />;
+  return <RunsTable api={api} preset={a ? Number(a) : null} />;
 }
 
-function RunsTable({ api }) {
+const FILTER_OPTIONS = [
+  { value: "all", label: "all" },
+  { value: "failed", label: "failed only", tip: "rows where a scorer produced no value" },
+  { value: "low", label: "below 0.5", tip: "rows where any scorer scored under 0.5" },
+];
+const COMPARE_OPTIONS = (delta) => [
+  { value: "all", label: "all" },
+  { value: "different", label: "different only", tip: `rows whose delta is beyond ±${delta.toFixed(2)}, the run's delta` },
+];
+
+function RunsTable({ api, preset = null }) {
   const navigate = useNavigate();
   const runs = useRequest(() => api.experiments(), [api]);
-  const [picked, setPicked] = useState([]);
+  const [picked, setPicked] = useState(preset == null ? [] : [preset]);
   const rows = runs.data ?? [];
   const scorerKeys = useMemo(() => unionKeys(rows.map((r) => r.scorer_means)), [rows]);
 
@@ -174,7 +190,16 @@ function RunsTable({ api }) {
         )}
       </TitleRow>
       {!runs.loading && rows.length === 0 ? (
-        <EmptyState Icon={Flask} title="No runs yet" command={RUN_COMMAND} />
+        <EmptyState
+          Icon={Flask}
+          title="No runs yet"
+          sentence="Runs appear here as soon as the CLI has written one. Start with an eval, then ablate the same prompt."
+          command={RUN_COMMAND}
+          cards={[
+            { name: "eval", line: "Scores the prompt against every case: the baseline an ablation is measured against." },
+            { name: "ablate", line: "Removes each segment in turn and paints the prompt by the measured effect of its removal." },
+          ]}
+        />
       ) : (
         <Table
           columns={shown.visible}
@@ -191,6 +216,7 @@ function RunsTable({ api }) {
 }
 
 function ExperimentDetail({ api, id }) {
+  const navigate = useNavigate();
   const detail = useRequest(() => api.experiment(id), [api, id]);
   const results = useRequest(() => api.results(id), [api, id]);
   const hash = detail.data?.dataset_hash ?? null;
@@ -198,14 +224,43 @@ function ExperimentDetail({ api, id }) {
   const [showVariants, setShowVariants] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
   const [pretty, setPretty] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [configOpen, setConfigOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const run = detail.data;
   const scorerKeys = run ? Object.keys(run.scorer_means) : [];
-  const rows = useMemo(
+  const allRows = useMemo(
     () => groupRuns(results.data ?? [], cases.data ?? [], scorerKeys, showVariants),
     [results.data, cases.data, scorerKeys, showVariants],
   );
-  const selected = rows.find((r) => r.key === selectedKey) ?? null;
+  const rows = useMemo(() => allRows.filter((r) => matchesFilter(r, filter)), [allRows, filter]);
+  const selected = allRows.find((r) => r.key === selectedKey) ?? null;
+
+  const copyPrompt = () => {
+    navigator.clipboard?.writeText(run?.prompt_text ?? "").then(() => setCopied(true));
+  };
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timer = setTimeout(() => setCopied(false), 1200);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  const menuItems = run
+    ? [
+        { label: copied ? "Copied" : "Copy prompt", Icon: Copy, onSelect: copyPrompt, keepOpen: true },
+        { label: "View config", Icon: FileText, onSelect: () => setConfigOpen(true) },
+        {
+          label: "Download results (CSV)",
+          Icon: DownloadSimple,
+          disabled: allRows.length === 0,
+          onSelect: () => downloadText(`${run.name ?? `experiment-${id}`}-results.csv`, resultsCsv(allRows, scorerKeys)),
+        },
+        { label: "Compare with…", Icon: ArrowsLeftRight, onSelect: () => navigate(`/experiments?a=${id}`) },
+        ...(run.kind === "ablation"
+          ? [{ label: "Open ablation", Icon: Scissors, onSelect: () => navigate(`/ablations/${id}`) }]
+          : []),
+      ]
+    : [];
   const hasVariants = (results.data ?? []).some((r) => r.variant_id != null);
 
   const columns = [
@@ -252,6 +307,7 @@ function ExperimentDetail({ api, id }) {
           error={detail.error ?? results.error ?? cases.error}
           chips={run && <RunChips run={run} />}
         >
+          <SegmentedControl options={FILTER_OPTIONS} value={filter} onChange={setFilter} label="display" />
           <ColumnPicker columns={shown} />
           {hasVariants && (
             <button
@@ -264,10 +320,21 @@ function ExperimentDetail({ api, id }) {
               {showVariants ? "hide variants" : "show variants"}
             </button>
           )}
+          {run && <Menu items={menuItems} label="run actions" />}
         </TitleRow>
-        {run && <RunHeader run={run} />}
-        {run && rows.length === 0 && !results.loading ? (
-          <EmptyState Icon={Flask} title="No results stored for this run" command={null} />
+        {run && <RunHeader run={run} configOpen={configOpen} onConfigOpen={setConfigOpen} />}
+        {run && allRows.length === 0 && !results.loading ? (
+          <EmptyState
+            Icon={Flask}
+            title="No results stored for this run"
+            sentence="This run wrote no result rows; it may have stopped before its first case finished."
+          />
+        ) : run && rows.length === 0 && !results.loading ? (
+          <EmptyState
+            Icon={Flask}
+            title="No rows match this filter"
+            sentence={`${count(allRows.length)} rows are hidden by "${FILTER_OPTIONS.find((o) => o.value === filter)?.label}".`}
+          />
         ) : (
           <Table
             columns={shown.visible}
@@ -293,7 +360,18 @@ function ExperimentDetail({ api, id }) {
           <Section
             Icon={ArrowUpRight}
             title={selected.output == null ? "Output · failed" : "Output"}
-            actions={<FormatToggle pretty={pretty} onChange={setPretty} />}
+            actions={
+              <SegmentedControl
+                size="sm"
+                label="output format"
+                options={[
+                  { value: "pretty", label: "Pretty", tip: "wrapped to the panel" },
+                  { value: "raw", label: "Raw", tip: "as written; scrolls sideways" },
+                ]}
+                value={pretty ? "pretty" : "raw"}
+                onChange={(v) => setPretty(v === "pretty")}
+              />
+            }
           >
             <CodeBlock
               text={selected.output}
@@ -327,7 +405,7 @@ function ExperimentDetail({ api, id }) {
 }
 
 /** The metric grid under the title (DESIGN.md §7) and a closed `config` section with the YAML. */
-function RunHeader({ run }) {
+function RunHeader({ run, configOpen, onConfigOpen }) {
   const groups = [
     [
       {
@@ -357,33 +435,11 @@ function RunHeader({ run }) {
     <>
       <MetricGrid groups={groups} />
       <div className="border-b border-line px-5 py-2">
-        <Section Icon={FileText} title="config" defaultOpen={false}>
+        <Section Icon={FileText} title="config" open={configOpen} onOpenChange={onConfigOpen}>
           <CodeBlock text={configToYaml(run.config)} numbered yaml />
         </Section>
       </div>
     </>
-  );
-}
-
-/** Pretty wraps the output; Raw shows it as written, scrolling sideways. */
-function FormatToggle({ pretty, onChange }) {
-  const option = (on, label) => (
-    <button
-      type="button"
-      onClick={() => onChange(on)}
-      aria-pressed={pretty === on}
-      className={`h-6 rounded-sm px-1.5 text-xs font-medium ${
-        pretty === on ? "bg-surface-3 text-ink" : "text-secondary hover:text-ink"
-      }`}
-    >
-      {label}
-    </button>
-  );
-  return (
-    <span className="flex items-center gap-0.5">
-      {option(true, "Pretty")}
-      {option(false, "Raw")}
-    </span>
   );
 }
 
@@ -418,7 +474,18 @@ function ScoreCell({ result }) {
 
 function Compare({ api, a, b }) {
   const compare = useRequest(() => api.compare(a, b), [api, a, b]);
+  // Run a's config carries the delta that decides what counts as "different".
+  const runA = useRequest(() => api.experiment(a), [api, a]);
+  const [filter, setFilter] = useState("all");
   const data = compare.data;
+  const threshold = Number(runA.data?.config?.delta ?? 0.03);
+  const caseRows = useMemo(
+    () =>
+      (data?.cases ?? []).filter(
+        (r) => filter === "all" || (r.delta != null && Math.abs(r.delta) > threshold),
+      ),
+    [data, filter, threshold],
+  );
   const scorerRows = data ? Object.entries(data.scorers).map(([key, v]) => ({ key, ...v })) : [];
   const nameOf = (run) => run.name ?? `#${run.id}`;
 
@@ -448,7 +515,15 @@ function Compare({ api, a, b }) {
         crumb={{ label: "Experiments", to: "/experiments" }}
         loading={compare.loading}
         error={compare.error}
-        chips={data && <Chip Icon={Rows}>{count(data.cases.length)} cases</Chip>}
+        chips={
+          data && (
+            <Chip Icon={Rows}>
+              {filter === "all"
+                ? `${count(data.cases.length)} cases`
+                : `${count(caseRows.length)} of ${count(data.cases.length)} cases`}
+            </Chip>
+          )
+        }
       >
         {data && (
           <span className="text-sm text-secondary">
@@ -456,6 +531,7 @@ function Compare({ api, a, b }) {
             <Delta value={data.delta} />)
           </span>
         )}
+        <SegmentedControl options={COMPARE_OPTIONS(threshold)} value={filter} onChange={setFilter} label="display" />
       </TitleRow>
       {data && (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -464,7 +540,15 @@ function Compare({ api, a, b }) {
             <Table columns={scorerColumns} rows={scorerRows} rowKey={(r) => r.key} />
           </div>
           <div className="px-5 pt-4 text-xs font-medium text-secondary">per case</div>
-          <Table columns={caseColumns} rows={data.cases} rowKey={(r) => r.index} rowHeight={40} />
+          {caseRows.length === 0 ? (
+            <EmptyState
+              Icon={ArrowsLeftRight}
+              title="No rows match this filter"
+              sentence={`No case moved by more than ±${threshold.toFixed(2)} between the two runs.`}
+            />
+          ) : (
+            <Table columns={caseColumns} rows={caseRows} rowKey={(r) => r.index} rowHeight={40} />
+          )}
         </div>
       )}
     </Panel>
@@ -480,6 +564,30 @@ function Delta({ value }) {
       <span className={tone}>{delta(value)}</span>
     </Tooltip>
   );
+}
+
+/** The display filter of the per-case table (DESIGN.md §7 SegmentedControl). */
+function matchesFilter(row, filter) {
+  if (filter === "failed") return row.failed;
+  if (filter === "low") return Object.values(row.scores).some((s) => s.score != null && s.score < 0.5);
+  return true;
+}
+
+/** One CSV row per table row: case, repeat, variant, input, output, expected, a score and a reason per scorer. */
+function resultsCsv(rows, scorerKeys) {
+  const columns = [
+    { key: "case_index", label: "case" },
+    { key: "repeat_index", label: "repeat" },
+    { key: "variant_id", label: "variant", value: (r) => r.variant_id ?? "baseline" },
+    { key: "input", label: "input" },
+    { key: "output", label: "output" },
+    { key: "expected", label: "expected" },
+    ...scorerKeys.flatMap((key) => [
+      { key: `score:${key}`, label: key, value: (r) => r.scores[key]?.score ?? "" },
+      { key: `reason:${key}`, label: `${key} reason`, value: (r) => r.scores[key]?.reason ?? "" },
+    ]),
+  ];
+  return toCsv(columns, rows);
 }
 
 function unionKeys(objects) {

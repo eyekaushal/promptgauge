@@ -31,9 +31,15 @@ export default function Datasets({ api }) {
   const hash = chosen ?? datasets.data?.[0]?.dataset_hash ?? null;
   const cases = useRequest(() => (hash ? api.cases(hash) : null), [api, hash]);
   const [query, setQuery] = useState("");
+  const [tagFilters, setTagFilters] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const addTag = (tag) => setTagFilters((t) => (t.includes(tag) ? t : [...t, tag]));
+  const removeTag = (tag) => setTagFilters((t) => t.filter((x) => x !== tag));
 
-  const rows = useMemo(() => filterCases(cases.data ?? [], query), [cases.data, query]);
+  const rows = useMemo(
+    () => filterCases(cases.data ?? [], query, tagFilters),
+    [cases.data, query, tagFilters],
+  );
   const selected = (cases.data ?? []).find((c) => c.id === selectedId) ?? null;
   const current = (datasets.data ?? []).find((d) => d.dataset_hash === hash) ?? null;
 
@@ -55,7 +61,9 @@ export default function Datasets({ api }) {
       render: (c) => (
         <span className="flex gap-1">
           {c.tags.map((t) => (
-            <Tag key={t}>{t}</Tag>
+            <Tag key={t} onClick={() => addTag(t)} tip={`filter by ${t}`}>
+              {t}
+            </Tag>
           ))}
         </span>
       ),
@@ -99,12 +107,18 @@ export default function Datasets({ api }) {
               ))}
             </select>
           )}
+          {tagFilters.map((t) => (
+            <Tag key={t} onRemove={() => removeTag(t)} tip={`only cases tagged ${t}`}>
+              {t}
+            </Tag>
+          ))}
           {hash && <SearchInput value={query} onChange={setQuery} placeholder="Search cases" />}
         </TitleRow>
         {empty ? (
           <EmptyState
             Icon={Database}
             title="No datasets yet"
+            sentence="A dataset appears here the first time a run reads it; its cases are stored under the dataset's hash."
             command="promptgauge eval --config promptgauge.yaml"
           />
         ) : (
@@ -116,14 +130,22 @@ export default function Datasets({ api }) {
                 </span>
               </div>
             )}
-            <Table
-              columns={shown.visible}
-              rows={rows}
-              rowKey={(c) => c.id}
-              rowHeight={40}
-              onRowClick={(c) => setSelectedId(c.id === selectedId ? null : c.id)}
-              selectedKey={selectedId}
-            />
+            {rows.length === 0 && (cases.data ?? []).length > 0 ? (
+              <EmptyState
+                Icon={Database}
+                title="No rows match this filter"
+                sentence="Clear the search or remove a tag chip to see the cases again."
+              />
+            ) : (
+              <Table
+                columns={shown.visible}
+                rows={rows}
+                rowKey={(c) => c.id}
+                rowHeight={40}
+                onRowClick={(c) => setSelectedId(c.id === selectedId ? null : c.id)}
+                selectedKey={selectedId}
+              />
+            )}
           </>
         )}
       </Panel>
@@ -146,7 +168,9 @@ export default function Datasets({ api }) {
             {selected.tags.length ? (
               <div className="flex flex-wrap gap-1">
                 {selected.tags.map((t) => (
-                  <Tag key={t}>{t}</Tag>
+                  <Tag key={t} onClick={() => addTag(t)} tip={`filter by ${t}`}>
+                    {t}
+                  </Tag>
                 ))}
               </div>
             ) : (
@@ -159,12 +183,15 @@ export default function Datasets({ api }) {
   );
 }
 
-function filterCases(cases, query) {
+/** The search text and every chosen tag must all match (filters compose). */
+function filterCases(cases, query, tagFilters) {
   const needle = query.trim().toLowerCase();
-  if (!needle) return cases;
-  return cases.filter((c) =>
-    [c.input, c.expected, c.context, ...c.tags].some(
-      (text) => text && text.toLowerCase().includes(needle),
-    ),
+  return cases.filter(
+    (c) =>
+      tagFilters.every((t) => c.tags.includes(t)) &&
+      (!needle ||
+        [c.input, c.expected, c.context, ...c.tags].some(
+          (text) => text && text.toLowerCase().includes(needle),
+        )),
   );
 }
