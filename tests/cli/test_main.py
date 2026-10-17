@@ -161,3 +161,61 @@ def test_ablate_command_exits_1_on_a_stopped_run(example: Path, monkeypatch) -> 
     assert result.exit_code == 1, result.output
     assert "Stopped at the budget" in result.output
     assert "cut prompt not written" in result.output and not (example / "system.cut.md").exists()
+
+
+def test_build_app_reads_the_project_database(example: Path) -> None:
+    from fastapi.testclient import TestClient
+
+    config = Config.load(example / "promptgauge.yaml")
+    app = main.build_app(example, config, 7331)
+    with TestClient(app, base_url="http://127.0.0.1:7331") as client:
+        health = client.get("/api/health").json()
+        assert health["status"] == "ok"
+        assert health["database"].endswith("promptgauge.db")
+        assert client.get("/api/experiments").json() == []
+        assert client.get("/api/settings").json()["config"]["model"] == config.model
+    assert (example / ".promptgauge" / "promptgauge.db").is_file()
+
+
+def test_ui_serves_on_loopback_and_opens_the_browser(example: Path, monkeypatch) -> None:
+    served: dict = {}
+    opened: list[str] = []
+    monkeypatch.setattr(main.uvicorn, "run", lambda app, **kw: served.update(kw))
+    monkeypatch.setattr(main.webbrowser, "open", lambda url: opened.append(url))
+    monkeypatch.setattr(main.threading, "Timer", lambda delay, fn, args=(): _Now(fn, args))
+
+    result = CliRunner().invoke(main.app, ["ui", "--config", str(example / "promptgauge.yaml")])
+    assert result.exit_code == 0, result.output
+    assert served == {"host": "127.0.0.1", "port": 7331, "log_level": "warning"}
+    assert opened == ["http://127.0.0.1:7331"]
+
+
+def test_ui_without_a_config_still_serves_and_skips_the_browser(
+    tmp_path: Path, monkeypatch
+) -> None:
+    served: dict = {}
+    monkeypatch.setattr(main.uvicorn, "run", lambda app, **kw: served.update(kw))
+    monkeypatch.setattr(main.webbrowser, "open", lambda url: pytest.fail("browser opened"))
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(main.app, ["ui", "--port", "7444", "--no-open-browser"])
+    assert result.exit_code == 0, result.output
+    assert served["port"] == 7444
+    assert (tmp_path / ".promptgauge" / "promptgauge.db").is_file()
+
+
+def test_ui_reports_a_broken_config(tmp_path: Path) -> None:
+    (tmp_path / "promptgauge.yaml").write_text("prompt: [\n")
+    result = CliRunner().invoke(main.app, ["ui", "--config", str(tmp_path / "promptgauge.yaml")])
+    assert result.exit_code == 1
+    assert "error:" in result.output
+
+
+class _Now:
+    """Stands in for threading.Timer: runs the callback on start(), no thread."""
+
+    def __init__(self, fn, args) -> None:
+        self._fn, self._args = fn, args
+
+    def start(self) -> None:
+        self._fn(*self._args)

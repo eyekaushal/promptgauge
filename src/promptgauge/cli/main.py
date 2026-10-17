@@ -5,10 +5,14 @@ injected through constructors.
 import asyncio
 import os
 import sys
+import threading
+import webbrowser
 from pathlib import Path
 
 import anthropic
 import typer
+import uvicorn
+from fastapi import FastAPI
 from rich.console import Console
 from rich.progress import BarColumn, TextColumn
 from rich.progress import Progress as ProgressBar
@@ -18,6 +22,7 @@ from promptgauge.ablate.ablation_planner import AblationPlanner
 from promptgauge.ablate.ablation_report import AblationReport
 from promptgauge.ablate.budget_planner import BudgetPlanner
 from promptgauge.ablate.prompt_cutter import PromptCutter
+from promptgauge.api.app import App
 from promptgauge.cache.call_cache import CallCache
 from promptgauge.cli.eval_table import EvalTable
 from promptgauge.cli.terminal_painter import TerminalPainter
@@ -273,7 +278,34 @@ def ablate(config: str = "promptgauge.yaml", calls_per_month: int = 100_000) -> 
         sys.exit(1)
 
 
+def build_app(project_dir: Path, config: Config | None, port: int) -> FastAPI:
+    """Wire the API over the project's database. The key is only ever checked for presence."""
+    return App(
+        open_database(project_dir),
+        config,
+        lambda: bool(os.environ.get("ANTHROPIC_API_KEY")),
+        Logger(),
+        port=port,
+    ).build()
+
+
 @app.command()
-def ui(port: int = 7331) -> None:
-    """Serve the local dashboard and open the browser."""
-    raise NotImplementedError
+def ui(config: str = "promptgauge.yaml", port: int = 7331, open_browser: bool = True) -> None:
+    """Serve the local dashboard at http://127.0.0.1:<port> and open the browser."""
+    console = Console()
+    config_path = Path(config).resolve()
+    settings: Config | None = None
+    try:
+        if config_path.is_file():
+            settings = Config.load(config_path)
+        # Without a config the database next to the current directory is still worth reading.
+        project_dir = config_path.parent if config_path.is_file() else Path.cwd()
+        api = build_app(project_dir, settings, port)
+    except PromptgaugeError as exc:
+        console.print(f"[red]error:[/] {exc}", highlight=False)
+        sys.exit(1)
+    url = f"http://127.0.0.1:{port}"
+    console.print(f"promptgauge ui at {url} (Ctrl+C to stop)", highlight=False)
+    if open_browser:
+        threading.Timer(0.5, webbrowser.open, args=(url,)).start()
+    uvicorn.run(api, host="127.0.0.1", port=port, log_level="warning")
