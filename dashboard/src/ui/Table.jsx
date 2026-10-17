@@ -12,6 +12,7 @@ export default function Table({
   onRowClick = null,
   selectedKey = null,
   rowClass = null,
+  rowTitle = null,
   defaultSort = null,
 }) {
   const [sort, setSort] = useState(defaultSort);
@@ -63,6 +64,7 @@ export default function Table({
               <tr
                 key={key}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
+                title={rowTitle ? (rowTitle(row) ?? undefined) : undefined}
                 className={
                   "relative h-9 border-b border-line transition-colors duration-120 ease-out " +
                   (onRowClick ? "cursor-pointer hover:bg-surface-2 " : "") +

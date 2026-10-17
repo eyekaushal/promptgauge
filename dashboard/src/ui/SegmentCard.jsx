@@ -22,7 +22,7 @@ export default function SegmentCard({ segment, colour, legend, baseline, blockIn
   return (
     <div className="flex flex-col gap-2 text-sm">
       <div className="flex items-center gap-2">
-        <Swatch verdict={colour} />
+        <Swatch verdict={colour} word={word} />
         <span className="font-medium">{colour ?? "unmeasured"}</span>
         <span className="text-secondary">{word}</span>
       </div>

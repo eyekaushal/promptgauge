@@ -7,6 +7,7 @@ import Datasets from "./screens/Datasets.jsx";
 import Experiments from "./screens/Experiments.jsx";
 import Settings from "./screens/Settings.jsx";
 import Sidebar from "./ui/Sidebar.jsx";
+import { TooltipProvider } from "./ui/Tooltip.jsx";
 
 /** The shell: sidebar, one panel for the screen, the API client built once (DESIGN.md §6). */
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
   }, [api]);
 
   return (
+    <TooltipProvider>
     <div className="flex h-full min-w-[720px]">
       <Sidebar health={health} />
       <main className="flex min-w-0 flex-1 gap-4 p-4">
@@ -40,5 +42,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </TooltipProvider>
   );
 }

@@ -1,3 +1,5 @@
+import Tooltip from "./Tooltip.jsx";
+
 /** Four swatches, each with its word and the count at the current delta (DESIGN.md §1). */
 export const UNMEASURED_WORD = "not measured";
 
@@ -11,8 +13,8 @@ export default function VerdictLegend({ legend, counts }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       {entries.map(([verdict, word]) => (
-        <span key={verdict} className="flex items-center gap-1.5" title={word}>
-          <Swatch verdict={verdict} />
+        <span key={verdict} className="flex items-center gap-1.5">
+          <Swatch verdict={verdict} word={word} />
           <span className="font-medium">{verdict}</span>
           <span className="text-secondary">{word}</span>
           <span className="text-tertiary">{counts[verdict] ?? 0}</span>
@@ -29,6 +31,10 @@ const SWATCH = {
   unmeasured: "border border-line-strong bg-transparent",
 };
 
-export function Swatch({ verdict }) {
-  return <span className={`inline-block size-2.5 rounded-sm ${SWATCH[verdict ?? "unmeasured"]}`} />;
+export function Swatch({ verdict, word = null }) {
+  return (
+    <Tooltip text={word}>
+      <span className={`inline-block size-2.5 rounded-sm ${SWATCH[verdict ?? "unmeasured"]}`} />
+    </Tooltip>
+  );
 }

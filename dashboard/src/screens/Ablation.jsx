@@ -106,7 +106,10 @@ function AblationDetail({ api, id }) {
         {data && (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
             {stopped && (
-              <div className="mx-5 mt-4 rounded-sm bg-warn-soft px-3 py-2 text-sm">
+              <div
+                className="mx-5 mt-4 rounded-sm bg-warn-soft px-3 py-2 text-sm"
+                title="stopped: the run ended before every segment was measured; what it measured is kept"
+              >
                 <span className="font-medium text-warn">Stopped: {stopped}.</span>{" "}
                 {count(measured)} of {count(total)} segments measured; the cut prompt was not confirmed.
               </div>

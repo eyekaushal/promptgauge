@@ -12,6 +12,7 @@ import StatusTag from "../ui/StatusTag.jsx";
 import Table from "../ui/Table.jsx";
 import Tag from "../ui/Tag.jsx";
 import TitleRow from "../ui/TitleRow.jsx";
+import Tooltip from "../ui/Tooltip.jsx";
 import { useRequest } from "../ui/useRequest.js";
 
 const RUN_COMMAND = "promptgauge eval --config promptgauge.yaml";
@@ -218,6 +219,7 @@ function ExperimentDetail({ api, id }) {
             onRowClick={(r) => setSelectedKey(r.key === selectedKey ? null : r.key)}
             selectedKey={selectedKey}
             rowClass={(r) => (r.failed ? "bg-danger-soft/40" : "")}
+            rowTitle={(r) => (r.failed ? "a scorer failed on this run" : null)}
           />
         )}
       </Panel>
@@ -284,7 +286,13 @@ function RunHeader({ run }) {
 /** A score, or the word "failed" on danger soft when the scorer produced no value. */
 function ScoreCell({ result }) {
   if (!result) return <Dash word="not run" />;
-  if (result.score == null) return <Tag tone="danger">failed</Tag>;
+  if (result.score == null) {
+    return (
+      <Tag tone="danger" tip="failed: the scorer produced no value for this output">
+        failed
+      </Tag>
+    );
+  }
   return <span title={result.reason ?? undefined}>{score(result.score)}</span>;
 }
 
@@ -356,7 +364,12 @@ function Compare({ api, a, b }) {
 function Delta({ value }) {
   if (value == null) return <Dash />;
   const tone = value > 0 ? "text-ok" : value < 0 ? "text-danger" : "text-secondary";
-  return <span className={tone}>{delta(value)}</span>;
+  const word = value > 0 ? "higher under b" : value < 0 ? "lower under b" : "no change";
+  return (
+    <Tooltip text={`${delta(value)}: ${word}`}>
+      <span className={tone}>{delta(value)}</span>
+    </Tooltip>
+  );
 }
 
 function unionKeys(objects) {

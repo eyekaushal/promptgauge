@@ -127,7 +127,9 @@ function Confirmation({ ablation, diff, delta, stopped }) {
     return (
       <>
         {base}
-        <Tag tone="danger">cut prompt not confirmed</Tag>
+        <Tag tone="danger" tip="not confirmed: the run stopped before the cut prompt was measured against the baseline">
+          cut prompt not confirmed
+        </Tag>
         <span className="text-secondary">
           no confirmation run{stopped ? ` (stopped: ${stopped})` : ""}; shown as a suggestion
         </span>
@@ -143,9 +145,13 @@ function Confirmation({ ablation, diff, delta, stopped }) {
         <span className="text-secondary"> {interval(ablation.cut_ci_low, ablation.cut_ci_high)}</span>
       </span>
       {ablation.confirmed ? (
-        <Tag tone="ok">confirmed</Tag>
+        <Tag tone="ok" tip="confirmed: the cut prompt scored at least baseline − delta on a full run">
+          confirmed
+        </Tag>
       ) : (
-        <Tag tone="danger">cut prompt not confirmed</Tag>
+        <Tag tone="danger" tip="not confirmed: the cut prompt scored below baseline − delta on a full run">
+          cut prompt not confirmed
+        </Tag>
       )}
       <span className="text-secondary">
         {fmtDelta(diff)} vs baseline

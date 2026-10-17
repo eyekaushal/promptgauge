@@ -157,8 +157,8 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 | `HoverCard` | Radix HoverCard | B16 | rows in this order: verdict swatch + word · `baseline → without` (`baseline_score`, `baseline_score + mean_delta`) · delta with sign · `95% interval [lo, hi]` · `n cases` · `tokens` · `block 3` / `line 2 of block 3` |
 | `Slider` | Radix Slider | B16 | the `delta` control, 0.00 to 0.20 step 0.01, value shown beside it, starts at the run's `delta` |
 | `CutPromptPanel` | own | B16 | two columns (§0): the left marks removed runs found by `ui/deletions.js` (an LCS over word and whitespace tokens; deletion only makes the cut a subsequence of the original), `tokens_before → tokens_after` (−n, −%), `cut_score [lo, hi]` beside `baseline_score`, `confirmed` / `cut prompt not confirmed` word with the CLI's wording, `calls_per_month` input (saved through `PUT /api/settings` on blur or Enter), USD and INR saved, primary "Copy cut prompt" button |
-| `Tooltip` | Radix Tooltip | B17 | 300 ms delay, `panel`, 11 px; on every coloured element, carrying the word |
-| `Dialog` | Radix Dialog | B17 | 480 px, radius 12; the compare picker and the narrow-screen side panel |
+| `Tooltip` | Radix Tooltip | B17 | 300 ms delay, `panel`, 11 px; `Tag tip=`, `Swatch word=`, `StatusTag`, failed cells, compare deltas and the confirmation tags all carry their word through it; the stopped banner and tinted rows use `title` |
+| `Dialog` | Radix Dialog | B17 | 480 px, radius 12; `SidePanel` renders as one under 1100 px (`ui/useMediaQuery.js`). The compare picker stayed two checkboxes and a button (B15), so no dialog there |
 | `CodeBlock` | own | B15 | mono text, `surface-2`, copy button top-right |
 
 Rules for every component:
@@ -182,7 +182,7 @@ All requests go through `dashboard/src/api/ApiClient.js`, one method per route, 
 | Compare (`/experiments?a=&b=`, reached by ticking two rows) | `GET /api/experiments/compare?a=&b=` | `a`, `b` summaries; `scorers[key].{a,b,delta}`; `cases[].{index,input,a,b,delta}`; deltas signed. |
 | Ablations (`/ablations`) | `GET /api/experiments?kind=ablation` | name, model, baseline `score`, cases, calls, cost, date, status; row click opens the run. |
 | Ablation (`/ablations/:id`) | `GET /api/ablations/{id}`, `GET /api/settings` | `prompt_text` painted by `segments[].{start_offset,end_offset,level,parent_segment_id,verdict}`; `delta` seeds the slider; `legend` is the words; `input_usd_per_million` (null when the model left the price table: the panel then says so instead of a figure); `ablation.*` fills the cut panel; `totals`; `experiment.status` / `stopped_reason` drive the banner; `calls_per_month` and `inr_rate` from settings. The stat tiles and the legend counts follow the slider. The CLI's "Most segments are grey" hint appears when more than 80% of measured segments are grey. |
-| Settings | `GET /api/settings`, `PUT /api/settings` | `config.{model,judge,budget_usd,delta,repeats}`, `api_key_present` (word: present / missing, never the key), `calls_per_month`, `inr_rate`. |
+| Settings | `GET /api/settings`, `GET /api/experiments` + `GET /api/experiments/{id}` (the newest), `PUT /api/settings` | Run config from the last run's `config` (F8.4), else the `config` echo of the loaded promptgauge.yaml, else an empty state: model, judge, budget_usd, delta, repeats, temperature, concurrency, prompt, dataset, scorers. `api_key_present` as a tag (present ok / missing danger, never the key). `calls_per_month` and `inr_rate` inputs with one primary Save, disabled until valid and changed. |
 
 ### The verdict rule, repeated client-side
 
