@@ -28,7 +28,7 @@ export default function App() {
   return (
     <TooltipProvider>
     <div className="flex h-full min-w-[720px]">
-      <Sidebar health={health} />
+      <Sidebar api={api} health={health} />
       <main className="flex min-w-0 flex-1 gap-4 p-4">
         <Routes>
           <Route path="/" element={<Navigate to="/experiments" replace />} />

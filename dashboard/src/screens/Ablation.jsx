@@ -1,4 +1,4 @@
-import { ArrowLeft, Scissors } from "@phosphor-icons/react";
+import { Scissors } from "@phosphor-icons/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 
@@ -43,7 +43,7 @@ function AblationList({ api }) {
   ];
   return (
     <Panel>
-      <TitleRow title="Ablations" loading={runs.loading} error={runs.error} />
+      <TitleRow title="Ablations" Icon={Scissors} loading={runs.loading} error={runs.error} />
       {!runs.loading && rows.length === 0 ? (
         <EmptyState Icon={Scissors} title="No ablations yet" command={RUN_COMMAND} />
       ) : (
@@ -54,7 +54,6 @@ function AblationList({ api }) {
 }
 
 function AblationDetail({ api, id }) {
-  const navigate = useNavigate();
   const ablation = useRequest(() => api.ablation(id), [api, id]);
   const settings = useRequest(() => api.settings(), [api]);
   const [delta, setDelta] = useState(null);
@@ -89,14 +88,9 @@ function AblationDetail({ api, id }) {
     <>
       <Panel>
         <TitleRow
-          title={
-            <span className="flex items-center gap-2">
-              <button type="button" onClick={() => navigate("/ablations")} aria-label="back to ablations" className="rounded-sm p-1 text-secondary hover:bg-surface-2">
-                <ArrowLeft size={16} />
-              </button>
-              {data?.experiment.name ?? `Ablation ${id}`}
-            </span>
-          }
+          title={data?.experiment.name ?? `Ablation ${id}`}
+          Icon={Scissors}
+          crumb={{ label: "Ablations", to: "/ablations" }}
           loading={ablation.loading || settings.loading}
           error={ablation.error ?? settings.error ?? saveError}
         >

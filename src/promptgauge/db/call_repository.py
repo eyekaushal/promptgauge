@@ -79,3 +79,16 @@ class CallRepository:
         )
         assert row is not None  # an aggregate always returns one row
         return row
+
+    def grand_totals(self) -> Row:
+        """calls, cached and cost_usd summed over every experiment (the spend card)."""
+        row = self._db.query_one(
+            """
+            SELECT COUNT(*)                     AS calls,
+                   COALESCE(SUM(cached), 0)     AS cached,
+                   COALESCE(SUM(cost_usd), 0.0) AS cost_usd
+            FROM call
+            """
+        )
+        assert row is not None  # an aggregate always returns one row
+        return row

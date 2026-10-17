@@ -28,6 +28,7 @@ def test_create_get_list_finish(db: Database) -> None:
     assert row is not None
     assert row["status"] == "running" and row["finished_at"] is None and row["name"] == "a"
     assert [r["id"] for r in repo.list()] == [second, first]
+    assert repo.count() == 2
     assert [r["id"] for r in repo.list(kind="ablation")] == [second]
 
     repo.finish(second, "stopped", stopped_reason="budget")

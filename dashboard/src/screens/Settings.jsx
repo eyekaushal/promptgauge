@@ -66,13 +66,13 @@ export default function Settings({ api }) {
   const loading = settings.loading || runs.loading || last.loading;
   return (
     <Panel>
-      <TitleRow title="Settings" loading={loading} error={settings.error ?? saveError}>
+      <TitleRow title="Settings" Icon={GearSix} loading={loading} error={settings.error ?? saveError}>
         {saved && !dirty && <span className="text-sm text-ok">saved</span>}
         <button
           type="button"
           onClick={save}
           disabled={!dirty || !callsValid || !rateValid || saving}
-          className="h-8 rounded-md bg-accent px-3 text-base text-accent-fg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+          className="btn btn-primary"
         >
           Save
         </button>

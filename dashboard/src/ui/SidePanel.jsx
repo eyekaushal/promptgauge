@@ -33,7 +33,7 @@ function Header({ title, subtitle, onClose, dialog = false }) {
   return (
     <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-line px-5">
       <div className="min-w-0">
-        <Title className="truncate text-lg font-medium">{title}</Title>
+        <Title className="truncate text-lg font-semibold">{title}</Title>
         {subtitle ? (
           <Description className="truncate text-sm text-secondary">{subtitle}</Description>
         ) : (

@@ -7,17 +7,18 @@
   --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
   --font-mono: "JetBrains Mono Variable", "SF Mono", Menlo, Consolas, monospace;
 
-  --color-canvas: #f5f4f0;
+  /* Neutral zinc with one indigo accent (DESIGN.md §1, P1). */
+  --color-canvas: #fafafa;
   --color-panel: #ffffff;
-  --color-surface-2: rgba(28, 28, 30, 0.04);
-  --color-surface-3: rgba(28, 28, 30, 0.07);
-  --color-line: rgba(28, 28, 30, 0.08);
-  --color-line-strong: rgba(28, 28, 30, 0.16);
-  --color-ink: #1c1c1e;
-  --color-secondary: #6b6b70;
-  --color-tertiary: #a0a0a6;
-  --color-accent: #2f5d8a;
-  --color-accent-soft: rgba(47, 93, 138, 0.1);
+  --color-surface-2: #f4f4f5;
+  --color-surface-3: #e4e4e7;
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
+  --color-ink: #18181b;
+  --color-secondary: #71717a;
+  --color-tertiary: #a1a1aa;
+  --color-accent: #4f46e5;
+  --color-accent-soft: rgba(79, 70, 229, 0.1);
   --color-accent-fg: #ffffff;
 
   --color-red: #c0392b;
@@ -88,6 +89,48 @@
       transition: none !important;
       animation: none !important;
     }
+  }
+}
+
+/* Buttons (DESIGN.md §7): one filled primary per view, secondaries white with a hairline. */
+@layer components {
+  .btn {
+    display: inline-flex;
+    height: 32px;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--radius-sm);
+    padding: 0 10px;
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+      background-color 120ms var(--ease-out),
+      border-color 120ms var(--ease-out),
+      opacity 120ms var(--ease-out);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+  .btn-primary {
+    background: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+  .btn-primary:not(:disabled):hover {
+    opacity: 0.9;
+  }
+  .btn-secondary {
+    background: var(--color-panel);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line-strong);
+  }
+  .btn-secondary:not(:disabled):hover {
+    background: var(--color-surface-2);
+  }
+  .btn-secondary[aria-pressed="true"] {
+    background: var(--color-surface-3);
   }
 }
 

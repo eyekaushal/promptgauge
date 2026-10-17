@@ -1,4 +1,4 @@
-import { ArrowLeft, Flask } from "@phosphor-icons/react";
+import { ArrowsLeftRight, Eye, EyeSlash, Flask } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
@@ -103,13 +103,14 @@ function RunsTable({ api }) {
 
   return (
     <Panel>
-      <TitleRow title="Experiments" loading={runs.loading} error={runs.error}>
+      <TitleRow title="Experiments" Icon={Flask} loading={runs.loading} error={runs.error}>
         {picked.length === 2 && (
           <button
             type="button"
             onClick={() => navigate(`/experiments?a=${picked[0]}&b=${picked[1]}`)}
-            className="h-8 rounded-md bg-accent px-3 text-base text-accent-fg hover:opacity-90"
+            className="btn btn-primary"
           >
+            <ArrowsLeftRight size={14} />
             Compare
           </button>
         )}
@@ -134,7 +135,6 @@ function RunsTable({ api }) {
 }
 
 function ExperimentDetail({ api, id }) {
-  const navigate = useNavigate();
   const detail = useRequest(() => api.experiment(id), [api, id]);
   const results = useRequest(() => api.results(id), [api, id]);
   const hash = detail.data?.dataset_hash ?? null;
@@ -180,32 +180,22 @@ function ExperimentDetail({ api, id }) {
     <>
       <Panel>
         <TitleRow
-          title={
-            <span className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/experiments")}
-                aria-label="back to experiments"
-                className="rounded-sm p-1 text-secondary hover:bg-surface-2"
-              >
-                <ArrowLeft size={16} />
-              </button>
-              {run?.name ?? `Experiment ${id}`}
-            </span>
-          }
+          title={run?.name ?? `Experiment ${id}`}
+          Icon={Flask}
+          crumb={{ label: "Experiments", to: "/experiments" }}
           loading={detail.loading || results.loading || cases.loading}
           error={detail.error ?? results.error ?? cases.error}
         >
           {hasVariants && (
-            <label className="flex items-center gap-2 text-sm text-secondary">
-              <input
-                type="checkbox"
-                checked={showVariants}
-                onChange={(e) => setShowVariants(e.target.checked)}
-                className="accent-accent"
-              />
-              show variants
-            </label>
+            <button
+              type="button"
+              aria-pressed={showVariants}
+              onClick={() => setShowVariants((v) => !v)}
+              className="btn btn-secondary"
+            >
+              {showVariants ? <EyeSlash size={14} /> : <Eye size={14} />}
+              {showVariants ? "hide variants" : "show variants"}
+            </button>
           )}
         </TitleRow>
         {run && <RunHeader run={run} />}
@@ -297,7 +287,6 @@ function ScoreCell({ result }) {
 }
 
 function Compare({ api, a, b }) {
-  const navigate = useNavigate();
   const compare = useRequest(() => api.compare(a, b), [api, a, b]);
   const data = compare.data;
   const scorerRows = data ? Object.entries(data.scorers).map(([key, v]) => ({ key, ...v })) : [];
@@ -324,19 +313,9 @@ function Compare({ api, a, b }) {
   return (
     <Panel>
       <TitleRow
-        title={
-          <span className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate("/experiments")}
-              aria-label="back to experiments"
-              className="rounded-sm p-1 text-secondary hover:bg-surface-2"
-            >
-              <ArrowLeft size={16} />
-            </button>
-            {data ? `${nameOf(data.a)} vs ${nameOf(data.b)}` : "Compare"}
-          </span>
-        }
+        title={data ? `${nameOf(data.a)} vs ${nameOf(data.b)}` : "Compare"}
+        Icon={ArrowsLeftRight}
+        crumb={{ label: "Experiments", to: "/experiments" }}
         loading={compare.loading}
         error={compare.error}
       >

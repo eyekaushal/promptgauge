@@ -55,6 +55,7 @@ export default function Datasets({ api }) {
       <Panel>
         <TitleRow
           title="Datasets"
+          Icon={Database}
           loading={datasets.loading || cases.loading}
           error={datasets.error ?? cases.error}
         >

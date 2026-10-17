@@ -67,7 +67,7 @@ export default function CutPromptPanel({
         <button
           type="button"
           onClick={copy}
-          className="ml-auto flex h-8 items-center gap-1.5 rounded-md bg-accent px-3 text-base text-accent-fg hover:opacity-90"
+          className="btn btn-primary ml-auto"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? "Copied" : "Copy cut prompt"}

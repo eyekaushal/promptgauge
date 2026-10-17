@@ -1,6 +1,6 @@
 # promptgauge design system (v1)
 
-v0 was written 17 Oct 2026 before any UI existed. This v1 was written the same day at block B14, after the backend (B02–B13) landed, against the real API shapes in `src/promptgauge/api/models.py`. It is the law for `dashboard/`. Change the rule here first, then the code.
+v0 was written 17 Oct 2026 before any UI existed. This v1 was written the same day at block B14, after the backend (B02–B13) landed, against the real API shapes in `src/promptgauge/api/models.py`. It is the law for `dashboard/`. Change the rule here first, then the code. The UI polish pass (`docs/UI_POLISH.md`, P1 on 17 Oct 2026) moved the palette to neutral zinc with an indigo accent and gave the chrome Braintrust's shape; the rows below marked P1 are that pass.
 
 The bar is Linear and Braintrust's experiment tables: light, dense, quiet, one accent, tables that read at a glance, monospace where text is code. The painted prompt is the one loud thing on the screen and everything else gets out of its way.
 
@@ -9,7 +9,7 @@ The bar is Linear and Braintrust's experiment tables: light, dense, quiet, one a
 | Question left open in v0 | Decision | Why |
 |---|---|---|
 | Logo and wordmark | Three 6 px discs (red, grey, green strong colours) in a row, then the word `promptgauge` in mono 13 / 500 `ink`. No image file. | The product is three colours and a word; drawing it in CSS keeps the wheel free of assets. |
-| Sidebar collapse | Does not collapse. Fixed 200 px. Below 720 px the page scrolls horizontally. | Local tool on a laptop; one less state. |
+| Sidebar collapse | Does not collapse. Fixed 220 px (200 px before P1). Below 720 px the page scrolls horizontally. | Local tool on a laptop; one less state. |
 | Hover-card layout | See §7 `HoverCard`: verdict word first, then baseline → without, delta, interval, n cases, tokens, level. | Follows the order a reader asks: what is it, how much, how sure. |
 | Cut prompt: diff or two columns | Two columns. Left: the original with removed segments painted red-soft and struck through. Right: the cut prompt as plain mono. | Deletion only (invariant 2) means the right column is the left column minus the painted runs; a diff view would say the same thing with more noise. |
 | Empty-state illustrations | None. A 20 px Phosphor icon on a `surface-2` disc. | Illustrations age; the icon set is already bundled. |
@@ -22,19 +22,21 @@ Defined once in `dashboard/src/styles.css` under Tailwind's `@theme` as `--color
 
 ### Canvas, panels, ink
 
+Neutral zinc (P1). The warm `#f5f4f0` of v1.0 read as paper; the references read as a tool. One accent, indigo, and it appears only on the primary button, links, the focus ring, the slider thumb and the selected table row. Never on the navigation.
+
 | Token | Value | Use |
 |---|---|---|
-| `canvas` | `#f5f4f0` | Page background |
-| `panel` | `#ffffff` | Main column, side panels, cards |
-| `surface-2` | `rgba(28,28,30,0.04)` | Hover rows, input backgrounds, quiet chips, empty-state disc |
-| `surface-3` | `rgba(28,28,30,0.07)` | Pressed rows, selected tab underline |
-| `line` | `rgba(28,28,30,0.08)` | Hairlines between table rows, under headers, panel edges |
-| `line-strong` | `rgba(28,28,30,0.16)` | Input borders, slider track |
-| `ink` | `#1c1c1e` | Body text, titles, numbers |
-| `secondary` | `#6b6b70` | Metadata, hints, inactive sidebar items, table headers |
-| `tertiary` | `#a0a0a6` | Timestamps, placeholders, the database path |
-| `accent` | `#2f5d8a` | Selected sidebar item bar, primary button, links, focus ring, slider thumb |
-| `accent-soft` | `rgba(47,93,138,0.10)` | Selected row and sidebar item background |
+| `canvas` | `#fafafa` | Page background, sidebar |
+| `panel` | `#ffffff` | Main column, side panels, cards, secondary buttons |
+| `surface-2` | `#f4f4f5` | Hover rows, input backgrounds, quiet chips, empty-state disc, the spend card |
+| `surface-3` | `#e4e4e7` | Pressed rows, the active sidebar item, progress-bar tracks |
+| `line` | `#e4e4e7` | Hairlines between table rows, under headers, panel edges |
+| `line-strong` | `#d4d4d8` | Input and secondary-button borders, slider track |
+| `ink` | `#18181b` | Body text, titles, numbers |
+| `secondary` | `#71717a` | Metadata, hints, inactive sidebar items, table headers, breadcrumb parents |
+| `tertiary` | `#a1a1aa` | Timestamps, placeholders |
+| `accent` | `#4f46e5` | Primary button, links, focus ring, slider thumb, selected-row bar |
+| `accent-soft` | `rgba(79,70,229,0.10)` | Selected table row background |
 | `accent-fg` | `#ffffff` | Text on `accent` |
 
 ### Verdict colours (the product)
@@ -74,10 +76,10 @@ Both variable fonts are imported from `@fontsource-variable/*` in `styles.css` a
 | `base` | 13 / 18 | 400 | Tables, menus, buttons, inputs |
 | `mono` | 13 / 20 | 400 | The painted prompt, case inputs and outputs, the cut prompt, judge reasons |
 | `md` | 15 / 22 | 400 | Side-panel body text |
-| `lg` | 17 / 24 | 500 | Section titles, dialog titles |
-| `xl` | 20 / 26 | 500 | Page titles ("Ablation · system.md") |
+| `lg` | 17 / 24 | 600 (500 for section titles) | Side-panel and dialog titles; Settings section titles |
+| `xl` | 20 / 26 | 600 | Page titles ("Ablation · system.md") |
 
-Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers use `font-variant-numeric: tabular-nums` everywhere (set on `body`).
+Weight 400 for text, 500 for anything that must stand out, 600 only on page, side-panel and dialog titles (P1: at 500 they disappeared next to the tables). Numbers use `font-variant-numeric: tabular-nums` everywhere (set on `body`).
 
 ### Number formats (one helper, `dashboard/src/ui/format.js`)
 
@@ -89,6 +91,7 @@ Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers 
 | USD | `$` and two decimals | `$1.62` |
 | INR | `₹` and no decimals | `₹136` |
 | tokens, cases, calls | thousands separators | `1,284` |
+| share (cached) | whole percent, thin space before the sign | `61 %` |
 | duration | seconds under 60, else `m s` | `42 s`, `3 m 05 s` |
 | `created_at` | local date and time, no seconds | `17 Oct 2026, 14:02` |
 | null | an en dash in `tertiary`, plus the word where the null has one (`failed`, `not measured`, `not run`) | `–` |
@@ -109,7 +112,8 @@ Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers 
 | State | Treatment |
 |---|---|
 | Hover row | background `surface-2` |
-| Selected row / sidebar item | background `accent-soft`, 2 px `accent` bar on the left |
+| Selected table row | background `accent-soft`, 2 px `accent` bar on the left |
+| Active sidebar item | background `surface-3`, `ink` text, no bar (P1: accent on the nav stole from the painted prompt) |
 | Focus (keyboard) | 2 px `accent` ring, 2 px offset; never removed |
 | Disabled | opacity 0.45, `cursor: not-allowed` |
 | Loading | a 16 px spinner beside the page title; never a full-screen spinner; tables keep their last rows |
@@ -123,13 +127,14 @@ Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers 
 ┌────────┬───────────────────────────────────────────────┬──────────────┐
 │ side   │ title row: page title · actions                │ right panel  │
 │ bar    │ ──────────────────────────────────────────────│ (ablation:   │
-│ 200px  │ content                                        │ hover card / │
+│ 220px  │ content                                        │ hover card / │
 │        │                                                │ cut prompt)  │
 └────────┴───────────────────────────────────────────────┴──────────────┘
 ```
 
-- **Sidebar** 200 px, `canvas` background, hairline on the right: wordmark at the top (§0), four `NavLink` items with a 16 px Phosphor icon (regular weight) and a label: Datasets, Experiments, Ablations, Settings. At the bottom in `tertiary` `sm`: the project directory name on one line and the database path on the next, both from `GET /api/health` (`database`; the project is its grandparent directory).
-- **Main column:** one `panel` with a 16 px canvas gutter on every side, radius 12, hairline. Title row 52 px (title `xl` on the left, actions on the right), then the screen content. Minimum width 720 px.
+- **Sidebar** 220 px, `canvas` background, hairline on the right: wordmark at the top (§0); a section label `Project` (`xs`, 500, `secondary`, uppercase tracking); four `NavLink` rows of 32 px with a 16 px Phosphor icon (regular weight) and a label: Datasets, Experiments, Ablations, Settings. The active row is a `surface-3` pill with `ink` text; inactive rows are `secondary`. At the bottom, the **spend card** (`SpendCard`, §7): a `surface-2` card with the project directory name, then `Spend` and the total cost in USD, then `3 runs · 61 % cached` and one 4 px progress bar whose fill is the cached share (`secondary` on `surface-3`; the words beside it carry the meaning). Its numbers come from `GET /api/summary` and refresh on every route change; the database path is the card's tooltip, from `GET /api/health`.
+- **Main column:** one `panel` with a 16 px canvas gutter on every side, radius 12, hairline. Title row 52 px, then the screen content. Minimum width 720 px.
+- **Title row** (`TitleRow`): the screen's type icon (Phosphor, 18 px, `secondary`) first; then, on a detail page, a breadcrumb whose parent is a link in `secondary` (`Experiments › eval v1`, the `›` in `tertiary`) and whose last part is the `xl` title; on a list page just the title. A spinner while loading, an error line underneath, actions on the right with at most one filled primary. There is no back arrow: the crumb is the way back. The `…` run menu arrives at P4.
 - **Right panel:** 360 px, only on the Ablation screen (the pinned segment card), the Datasets screen (case detail) and the Experiment screen (one result). Hidden under 1100 px; its content then opens in a `Dialog`. The cut-prompt panel is two columns and needs the width, so it sits in the main column under the painted prompt, not in the right panel (changed at B16).
 - **Routes** (`react-router`, browser history, served by FastAPI's `html=True` fallback): `/datasets`, `/experiments`, `/experiments/:id`, `/ablations`, `/ablations/:id`, `/settings`. `/` redirects to `/experiments`. The sidebar item "Ablations" lists ablation runs (`GET /api/experiments?kind=ablation`) and each row opens `/ablations/:id`.
 
@@ -139,15 +144,16 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 
 | Component | Built on | Block | Notes |
 |---|---|---|---|
-| `Sidebar` | own | B14 | §6 |
-| `TitleRow` | own | B14 | title, optional spinner, optional `danger` error line, actions slot |
+| `Sidebar` | own | B14, P1 | §6: section label, `surface-3` active pill, `SpendCard` at the bottom |
+| `SpendCard` | own | P1 | §6: project name, `Spend` + USD, `runs · % cached`, 4 px cached-share bar; tooltip is the database path; `secondary` error line when the summary request fails |
+| `TitleRow` | own | B14, P1 | `Icon` (the screen's type icon), optional `crumb={{ label, to }}` rendered as a link before the title, title at `xl` 600, optional spinner, optional `danger` error line, actions slot |
 | `EmptyState` | own | B14 | §5 |
 | `Panel` | own | B15 | the main column (§6); every screen renders one, plus an optional `SidePanel` beside it |
 | `Dash` | own | B15 | the null value of §2: an en dash in `tertiary` plus the word |
 | `SearchInput` | own | B15 | 32 px, leading icon, filters client-side |
 | `Table` | own | B15 | 36 px rows, `xs` headers in `secondary`, hairlines, numbers right-aligned in tabular figures, sortable by header click, row click selects |
 | `Tag` | own | B15 | 11 px, 500, `surface-2` background with `ink` text; case tags and experiment `kind` |
-| `StatusTag` | `Tag` | B15 | `done` ok, `partial` warn, `stopped` warn with `stopped_reason`, `running` secondary |
+| `StatusTag` | `Tag` | B15, P1 | icon + word on the soft tint: `✓ done` ok, `△ partial` warn, `■ stopped: reason` warn, `◌ running` secondary (Phosphor Check, Warning, Square, CircleDashed at 11 px) |
 | `SidePanel` | own | B15 | the 360 px right column; title, subtitle, close, scrolling body of `CodeBlock`s |
 | `StatTile` | own | B16 | one number with an `xs` label; the totals row |
 | `VerdictLegend` | own | B16 | four swatches with the word beside each, always visible on the Ablation screen |
@@ -165,7 +171,7 @@ Rules for every component:
 
 - Every colour is paired with a word. The legend names each verdict; the hover card says the word; failed cells say "failed"; status tags say the status.
 - No AI-generated prose anywhere in the UI. Judge reasons are shown verbatim in `mono` and labelled "judge reason".
-- One primary button per view (`accent`); the rest quiet. "Copy cut prompt" is the primary on the Ablation screen; "Save" on Settings.
+- Buttons are two component classes in `styles.css`: `btn btn-primary` (filled `accent`, `accent-fg` text) and `btn btn-secondary` (`panel` background, `line-strong` hairline, `ink` text, an icon before the label). Both 32 px, radius 6, `base` type, 10 px side padding, 120 ms hover. One primary per view: "Compare" on the runs table, "Copy cut prompt" on the Ablation screen, "Save" on Settings; everything else that acts is a secondary ("show variants" is one, with an eye icon). Icon-only controls (close, copy, sort) stay bare.
 - Inputs 32 px tall, `line-strong` border, radius 6, `accent` ring on focus.
 - Tables never wrap; long inputs and outputs are truncated with an ellipsis and open in the side panel.
 - The dashboard never calls a model and never writes anything but `PUT /api/settings` (invariant 6).
@@ -176,6 +182,7 @@ All requests go through `dashboard/src/api/ApiClient.js`, one method per route, 
 
 | Screen | Route | Fields used |
 |---|---|---|
+| Sidebar | `GET /api/health`, `GET /api/summary` | `database` (tooltip, project name = its grandparent directory); `runs`, `calls`, `cached`, `cost_usd` (the spend card; cached share = `cached / calls`, 0 when there are no calls). |
 | Datasets | `GET /api/datasets`, `GET /api/datasets/{hash}/cases` | `dataset_hash` (first 8 chars shown, full on hover), `case_count`, `first_seen`; `index`, `input`, `expected`, `context`, `tags`. Search filters `input`, `expected`, `context` and tags client-side. |
 | Experiments | `GET /api/experiments` | `name`, `kind`, `model`, `scorer_means` (one column per key), `score`, `cases`, `totals.calls`, `totals.cached`, `totals.cost_usd`, `created_at`, `finished_at` (duration = finished − created), `status`, `stopped_reason`. |
 | Experiment | `GET /api/experiments/{id}`, `GET /api/experiments/{id}/results` | header from the detail; the per-case table groups result rows by `case_index` then `repeat_index`: `input` (from `case_scores`), `output`, `expected` (from the dataset), one cell per `scorer` with `score` and `reason`; `score: null` cells are `danger` soft with the word "failed". Rows with `variant_id` not null are hidden behind a "show variants" toggle (ablation runs only). |

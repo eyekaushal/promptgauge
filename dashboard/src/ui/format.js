@@ -29,6 +29,11 @@ export function count(value) {
   return value == null ? null : value.toLocaleString("en-US");
 }
 
+/** A share as a whole percent with a thin space before the sign: `61 %`. */
+export function percent(share) {
+  return share == null ? null : `${Math.round(share * 100)}\u2009%`;
+}
+
 export function duration(createdAt, finishedAt) {
   if (!createdAt || !finishedAt) return null;
   const seconds = Math.round((Date.parse(finishedAt) - Date.parse(createdAt)) / 1000);

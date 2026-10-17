@@ -54,6 +54,12 @@ class ExperimentRepository:
         """One experiment, or None."""
         return self._db.query_one("SELECT * FROM experiment WHERE id = ?", (experiment_id,))
 
+    def count(self) -> int:
+        """How many experiments exist, whatever their kind or status."""
+        row = self._db.query_one("SELECT COUNT(*) AS n FROM experiment")
+        assert row is not None  # an aggregate always returns one row
+        return int(row["n"])
+
     def list(self, kind: str | None = None) -> list[Row]:
         """Experiments newest first, optionally filtered by kind."""
         if kind is None:

@@ -388,7 +388,7 @@ All routes under `/api`, JSON, bound to `127.0.0.1`, Host header checked.
 | Experiments | `GET /experiments`, `GET /experiments/{id}`, `GET /experiments/{id}/results` (per case, per repeat, per scorer), `GET /experiments/compare?a=&b=` |
 | Ablations | `GET /ablations/{id}` (segments with verdicts, the ablation row, totals) |
 | Settings | `GET /settings` (config echo, `api_key_present`, display settings), `PUT /settings` (display settings only) |
-| System | `GET /health` |
+| System | `GET /health`, `GET /summary` (runs, calls, cached, cost_usd over the whole database; the sidebar's spend card) |
 
 Request and response models are Pydantic classes in `api/models.py`. Typed errors map to 404 and 422; anything else is a 500 whose details stay in the log.
 

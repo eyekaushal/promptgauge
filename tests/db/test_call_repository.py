@@ -2,6 +2,7 @@ import pytest
 
 from promptgauge.db.call_repository import CallRepository
 from promptgauge.db.database import Database
+from promptgauge.db.experiment_repository import ExperimentRepository
 
 
 def _insert(repo: CallRepository, experiment_id: int, *, cached: bool, cost: float) -> int:
@@ -48,3 +49,26 @@ def test_totals_come_from_rows(db: Database, experiment_id: int) -> None:
     assert (totals["input_tokens"], totals["output_tokens"]) == (200, 20)
     assert totals["cost_usd"] == pytest.approx(0.002)
     assert len(repo.list_by_experiment(experiment_id)) == 2
+
+
+def test_grand_totals_span_every_experiment(db: Database, experiment_id: int) -> None:
+    repo = CallRepository(db)
+    assert repo.grand_totals() == {"calls": 0, "cached": 0, "cost_usd": 0.0}
+    _insert(repo, experiment_id, cached=False, cost=0.002)
+    _insert(repo, experiment_id, cached=True, cost=0.0)
+    other = ExperimentRepository(db).create(
+        kind="ablation",
+        name=None,
+        prompt_hash="p2",
+        prompt_text="P",
+        dataset_hash="d",
+        model="m",
+        judge="j",
+        config_json="{}",
+    )
+    _insert(repo, other, cached=False, cost=0.003)
+    totals = repo.grand_totals()
+    assert (totals["calls"], totals["cached"]) == (3, 1)
+    assert totals["cost_usd"] == pytest.approx(0.005)
+    # Per-experiment totals are untouched by rows of another experiment.
+    assert repo.totals(experiment_id)["calls"] == 2

@@ -13,6 +13,7 @@ from promptgauge.api.experiments_routes import ExperimentsRoutes
 from promptgauge.api.host_guard import HostGuard
 from promptgauge.api.models import HealthOut
 from promptgauge.api.settings_routes import SettingsRoutes
+from promptgauge.api.summary_routes import SummaryRoutes
 from promptgauge.config.config import Config
 from promptgauge.config.pricing import Pricing
 from promptgauge.core.logger import Logger
@@ -70,7 +71,13 @@ class App:
             SettingsRepository(self._db), self._config, self._key_present
         )
         app.add_api_route("/api/health", self.health, methods=["GET"])
-        for routes in (CasesRoutes(cases), experiment_routes, ablation_routes, settings_routes):
+        for routes in (
+            CasesRoutes(cases),
+            experiment_routes,
+            ablation_routes,
+            settings_routes,
+            SummaryRoutes(experiments, calls),
+        ):
             app.include_router(routes.router, prefix="/api")
         app.add_exception_handler(Exception, self._internal_error)
         self._mount_static(app)

@@ -196,3 +196,12 @@ class HealthOut(BaseModel):
 
     status: str
     database: str
+
+
+class SummaryOut(BaseModel):
+    """`GET /summary`: the sidebar's spend card, summed over every run in the database."""
+
+    runs: int
+    calls: int
+    cached: int
+    cost_usd: float

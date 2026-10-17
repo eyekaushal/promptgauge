@@ -14,6 +14,10 @@ export class ApiClient {
     return this._get("/health");
   }
 
+  summary() {
+    return this._get("/summary");
+  }
+
   datasets() {
     return this._get("/datasets");
   }
