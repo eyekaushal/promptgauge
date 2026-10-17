@@ -285,6 +285,7 @@ def build_app(project_dir: Path, config: Config | None, port: int) -> FastAPI:
         config,
         lambda: bool(os.environ.get("ANTHROPIC_API_KEY")),
         Logger(),
+        Pricing(),
         port=port,
     ).build()
 

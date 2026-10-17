@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from promptgauge.api.app import App
+from promptgauge.config.pricing import Pricing
 from promptgauge.core.logger import Logger
 from promptgauge.db.call_repository import CallRepository
 from promptgauge.db.case_repository import CaseRepository
@@ -207,6 +208,7 @@ def app_factory(db: Database, key_state: dict[str, bool], tmp_path: Path):
             config,
             lambda: key_state["present"],
             Logger("test-api"),
+            Pricing({"claude-sonnet-4-5": (3.0, 15.0), "m": (1.0, 5.0)}),
             port=PORT,
             static_dir=static_dir or tmp_path / "static",
         )

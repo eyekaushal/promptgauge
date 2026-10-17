@@ -130,7 +130,7 @@ Weight 400 for text, 500 for anything that must stand out, 600 nowhere. Numbers 
 
 - **Sidebar** 200 px, `canvas` background, hairline on the right: wordmark at the top (§0), four `NavLink` items with a 16 px Phosphor icon (regular weight) and a label: Datasets, Experiments, Ablations, Settings. At the bottom in `tertiary` `sm`: the project directory name on one line and the database path on the next, both from `GET /api/health` (`database`; the project is its grandparent directory).
 - **Main column:** one `panel` with a 16 px canvas gutter on every side, radius 12, hairline. Title row 52 px (title `xl` on the left, actions on the right), then the screen content. Minimum width 720 px.
-- **Right panel:** 360 px, only on the Ablation screen (hover card pinned, then the cut-prompt panel) and the Datasets screen (case detail). Hidden under 1100 px; its content then opens in a `Dialog`.
+- **Right panel:** 360 px, only on the Ablation screen (the pinned segment card), the Datasets screen (case detail) and the Experiment screen (one result). Hidden under 1100 px; its content then opens in a `Dialog`. The cut-prompt panel is two columns and needs the width, so it sits in the main column under the painted prompt, not in the right panel (changed at B16).
 - **Routes** (`react-router`, browser history, served by FastAPI's `html=True` fallback): `/datasets`, `/experiments`, `/experiments/:id`, `/ablations`, `/ablations/:id`, `/settings`. `/` redirects to `/experiments`. The sidebar item "Ablations" lists ablation runs (`GET /api/experiments?kind=ablation`) and each row opens `/ablations/:id`.
 
 ## 7. Components (`dashboard/src/ui/`, one file per component, named after it)
@@ -151,10 +151,12 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 | `SidePanel` | own | B15 | the 360 px right column; title, subtitle, close, scrolling body of `CodeBlock`s |
 | `StatTile` | own | B16 | one number with an `xs` label; the totals row |
 | `VerdictLegend` | own | B16 | four swatches with the word beside each, always visible on the Ablation screen |
-| `SegmentSpan` | own | B16 | one painted run; `data-verdict`; hover opens the card; click pins it |
+| `PaintedPrompt` | own | B16 | the prompt as `pre`; blocks in document order, each block's lines inside it; text outside any segment stays plain |
+| `SegmentSpan` | own | B16 | one painted run; `data-verdict`; hover opens the card (Radix HoverCard); click pins it in the right panel, a click on the prompt background unpins |
+| `SegmentCard` | own | B16 | the card's content, shared by the hover card and the pinned right panel |
 | `HoverCard` | Radix HoverCard | B16 | rows in this order: verdict swatch + word · `baseline → without` (`baseline_score`, `baseline_score + mean_delta`) · delta with sign · `95% interval [lo, hi]` · `n cases` · `tokens` · `block 3` / `line 2 of block 3` |
 | `Slider` | Radix Slider | B16 | the `delta` control, 0.00 to 0.20 step 0.01, value shown beside it, starts at the run's `delta` |
-| `CutPromptPanel` | own | B16 | two columns (§0), `tokens_before → tokens_after`, `cut_score [lo, hi]` beside `baseline_score`, `confirmed` / `not confirmed` word, `calls_per_month` input, USD and INR saved, primary "Copy cut prompt" button |
+| `CutPromptPanel` | own | B16 | two columns (§0): the left marks removed runs found by `ui/deletions.js` (an LCS over word and whitespace tokens; deletion only makes the cut a subsequence of the original), `tokens_before → tokens_after` (−n, −%), `cut_score [lo, hi]` beside `baseline_score`, `confirmed` / `cut prompt not confirmed` word with the CLI's wording, `calls_per_month` input (saved through `PUT /api/settings` on blur or Enter), USD and INR saved, primary "Copy cut prompt" button |
 | `Tooltip` | Radix Tooltip | B17 | 300 ms delay, `panel`, 11 px; on every coloured element, carrying the word |
 | `Dialog` | Radix Dialog | B17 | 480 px, radius 12; the compare picker and the narrow-screen side panel |
 | `CodeBlock` | own | B15 | mono text, `surface-2`, copy button top-right |
@@ -178,7 +180,8 @@ All requests go through `dashboard/src/api/ApiClient.js`, one method per route, 
 | Experiments | `GET /api/experiments` | `name`, `kind`, `model`, `scorer_means` (one column per key), `score`, `cases`, `totals.calls`, `totals.cached`, `totals.cost_usd`, `created_at`, `finished_at` (duration = finished − created), `status`, `stopped_reason`. |
 | Experiment | `GET /api/experiments/{id}`, `GET /api/experiments/{id}/results` | header from the detail; the per-case table groups result rows by `case_index` then `repeat_index`: `input` (from `case_scores`), `output`, `expected` (from the dataset), one cell per `scorer` with `score` and `reason`; `score: null` cells are `danger` soft with the word "failed". Rows with `variant_id` not null are hidden behind a "show variants" toggle (ablation runs only). |
 | Compare (`/experiments?a=&b=`, reached by ticking two rows) | `GET /api/experiments/compare?a=&b=` | `a`, `b` summaries; `scorers[key].{a,b,delta}`; `cases[].{index,input,a,b,delta}`; deltas signed. |
-| Ablation | `GET /api/ablations/{id}` | `prompt_text` painted by `segments[].{start_offset,end_offset,level,verdict}`; `delta` seeds the slider; `legend` is the words; `ablation.*` fills the cut panel; `totals`; `experiment.status` / `stopped_reason` drive the banner. |
+| Ablations (`/ablations`) | `GET /api/experiments?kind=ablation` | name, model, baseline `score`, cases, calls, cost, date, status; row click opens the run. |
+| Ablation (`/ablations/:id`) | `GET /api/ablations/{id}`, `GET /api/settings` | `prompt_text` painted by `segments[].{start_offset,end_offset,level,parent_segment_id,verdict}`; `delta` seeds the slider; `legend` is the words; `input_usd_per_million` (null when the model left the price table: the panel then says so instead of a figure); `ablation.*` fills the cut panel; `totals`; `experiment.status` / `stopped_reason` drive the banner; `calls_per_month` and `inr_rate` from settings. The stat tiles and the legend counts follow the slider. The CLI's "Most segments are grey" hint appears when more than 80% of measured segments are grey. |
 | Settings | `GET /api/settings`, `PUT /api/settings` | `config.{model,judge,budget_usd,delta,repeats}`, `api_key_present` (word: present / missing, never the key), `calls_per_month`, `inr_rate`. |
 
 ### The verdict rule, repeated client-side
@@ -195,4 +198,4 @@ This is the one place UI logic duplicates Python logic; the two must stay identi
 
 ### Money saved (cut panel)
 
-`tokens_saved = tokens_before − tokens_after`; `usd = tokens_saved × calls_per_month × input_price_per_token(model)`; `inr = usd × inr_rate`. The input price per token for the run's model is exposed by the API at B16 (read from `Pricing`, never typed into the UI); until then the panel shows tokens only.
+`tokens_saved = tokens_before − tokens_after`; `usd = tokens_saved × calls_per_month × input_price_per_token(model)`; `inr = usd × inr_rate`. `input_price_per_token = input_usd_per_million / 1e6`, from the API (read from `Pricing`, never typed into the UI). Same formula as `TerminalPainter`.

@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException
 
 from promptgauge.api.experiments_routes import ExperimentsRoutes
 from promptgauge.api.models import AblationOut, AblationRow, SegmentOut, Totals, VerdictOut
+from promptgauge.config.pricing import Pricing
+from promptgauge.core.errors import ProviderError
 from promptgauge.db.call_repository import CallRepository
 from promptgauge.db.experiment_repository import ExperimentRepository
 from promptgauge.db.segment_repository import SegmentRepository
@@ -30,12 +32,14 @@ class AblationsRoutes:
         verdicts: VerdictRepository,
         calls: CallRepository,
         experiment_routes: ExperimentsRoutes,
+        pricing: Pricing,
     ) -> None:
         self._experiments = experiments
         self._segments = segments
         self._verdicts = verdicts
         self._calls = calls
         self._experiment_routes = experiment_routes
+        self._pricing = pricing
         self._router = APIRouter()
         self._router.add_api_route("/ablations/{experiment_id}", self.get, methods=["GET"])
 
@@ -63,11 +67,20 @@ class AblationsRoutes:
             experiment=self._experiment_routes.summary(row),
             prompt_text=row["prompt_text"],
             delta=rule.delta,
+            input_usd_per_million=self._input_price(row["model"]),
             legend=LEGEND,
             segments=segments,
             ablation=None if ablation is None else AblationRow(**ablation),
             totals=Totals(**self._calls.totals(experiment_id)),
         )
+
+    def _input_price(self, model: str) -> float | None:
+        # Money saved (F6.9) needs the input price; a model that left the price table since the
+        # run still gets its painted prompt, just no money figure.
+        try:
+            return self._pricing.input_per_million(model)
+        except ProviderError:
+            return None
 
     @staticmethod
     def _verdict(row: dict | None, rule: VerdictRule) -> VerdictOut | None:

@@ -14,6 +14,7 @@ from promptgauge.api.host_guard import HostGuard
 from promptgauge.api.models import HealthOut
 from promptgauge.api.settings_routes import SettingsRoutes
 from promptgauge.config.config import Config
+from promptgauge.config.pricing import Pricing
 from promptgauge.core.logger import Logger
 from promptgauge.db.call_repository import CallRepository
 from promptgauge.db.case_repository import CaseRepository
@@ -37,6 +38,7 @@ class App:
         config: Config | None,
         key_present: Callable[[], bool],
         logger: Logger,
+        pricing: Pricing,
         *,
         port: int = 7331,
         static_dir: Path = STATIC_DIR,
@@ -45,6 +47,7 @@ class App:
         self._config = config
         self._key_present = key_present
         self._log = logger
+        self._pricing = pricing
         self._port = port
         self._static_dir = static_dir
 
@@ -61,6 +64,7 @@ class App:
             VerdictRepository(self._db),
             calls,
             experiment_routes,
+            self._pricing,
         )
         settings_routes = SettingsRoutes(
             SettingsRepository(self._db), self._config, self._key_present

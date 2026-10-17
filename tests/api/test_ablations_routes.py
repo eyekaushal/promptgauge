@@ -9,6 +9,7 @@ def test_ablation_carries_segments_verdicts_row_and_totals(client: TestClient, s
     assert body["experiment"]["kind"] == "ablation"
     assert body["prompt_text"].startswith("# Role")
     assert body["delta"] == 0.05
+    assert body["input_usd_per_million"] == 3.0
     assert body["legend"]["grey"] == "no measurable effect at this sample size"
     assert [s["id"] for s in body["segments"]] == [
         seeded["block"],
@@ -68,6 +69,21 @@ def test_ablation_row_is_null_for_a_run_that_stopped_early(client: TestClient, d
     assert body["segments"] == []
     assert body["experiment"]["stopped_reason"] == "budget"
     assert body["delta"] == 0.03  # the rule's default when config_json carries none
+
+
+def test_unknown_model_price_is_null_not_an_error(client: TestClient, db, seeded) -> None:
+    unpriced = ExperimentRepository(db).create(
+        kind="ablation",
+        name="old",
+        prompt_hash="p",
+        prompt_text="x",
+        dataset_hash="d" * 8,
+        model="claude-retired-1",
+        judge="j",
+        config_json="{}",
+    )
+    body = client.get(f"/api/ablations/{unpriced}").json()
+    assert body["input_usd_per_million"] is None
 
 
 def test_eval_and_unknown_ids_are_404(client: TestClient, seeded) -> None:

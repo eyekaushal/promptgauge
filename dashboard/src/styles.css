@@ -90,3 +90,50 @@
     }
   }
 }
+
+/* Painted segments (DESIGN.md §3). Lines sit inside their block; a line's own colour wins and an
+   unmeasured line is transparent so the block shows through. */
+@layer components {
+  .segment {
+    border-radius: 3px;
+    padding: 1px 2px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    transition: background-color 150ms var(--ease-out);
+  }
+  .block-run {
+    border-radius: 3px;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+    transition: background-color 150ms var(--ease-out);
+  }
+  [data-verdict="red"] {
+    background-color: var(--color-red-soft);
+  }
+  [data-verdict="grey"] {
+    background-color: var(--color-grey-soft);
+  }
+  [data-verdict="green"] {
+    background-color: var(--color-green-soft);
+  }
+  [data-verdict="unmeasured"] {
+    background-color: transparent;
+  }
+  .segment[data-pinned] {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  .pop {
+    animation: pop 150ms var(--ease-out);
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

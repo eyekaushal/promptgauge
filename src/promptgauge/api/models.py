@@ -165,6 +165,7 @@ class AblationOut(BaseModel):
     experiment: ExperimentSummary
     prompt_text: str
     delta: float
+    input_usd_per_million: float | None
     legend: dict[str, str]
     segments: list[SegmentOut]
     ablation: AblationRow | None
