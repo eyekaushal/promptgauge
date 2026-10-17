@@ -25,6 +25,7 @@ class Config(BaseModel):
     budget_usd: float = Field(default=2.00, gt=0.0)
     delta: float = Field(default=0.03, ge=0.0)
     concurrency: int = Field(default=8, ge=1)
+    inr_rate: float = Field(default=84.0, gt=0.0)
 
     @field_validator("scorers", mode="before")
     @classmethod

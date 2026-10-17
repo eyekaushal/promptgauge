@@ -38,6 +38,10 @@ class RubricScorer(Scorer):
         """The rubric text the judge sees."""
         return self._rubric
 
+    @property
+    def uses_judge(self) -> bool:
+        return True
+
     def bind(self, judge: Judge) -> None:
         self._judge = judge
 

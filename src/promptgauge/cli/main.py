@@ -13,12 +13,18 @@ from rich.console import Console
 from rich.progress import BarColumn, TextColumn
 from rich.progress import Progress as ProgressBar
 
+from promptgauge.ablate.ablation import Ablation
+from promptgauge.ablate.ablation_planner import AblationPlanner
+from promptgauge.ablate.ablation_report import AblationReport
+from promptgauge.ablate.budget_planner import BudgetPlanner
+from promptgauge.ablate.prompt_cutter import PromptCutter
 from promptgauge.cache.call_cache import CallCache
 from promptgauge.cli.eval_table import EvalTable
+from promptgauge.cli.terminal_painter import TerminalPainter
 from promptgauge.config.config import Config
 from promptgauge.config.pricing import Pricing
 from promptgauge.config.scorer_spec import ScorerSpec
-from promptgauge.core.errors import ConfigError, PromptgaugeError
+from promptgauge.core.errors import BudgetExceededError, ConfigError, PromptgaugeError
 from promptgauge.core.logger import Logger
 from promptgauge.dataset.dataset_loader import DatasetLoader
 from promptgauge.db.call_repository import CallRepository
@@ -27,12 +33,17 @@ from promptgauge.db.database import Database
 from promptgauge.db.experiment_repository import ExperimentRepository
 from promptgauge.db.migrator import Migrator
 from promptgauge.db.result_repository import ResultRepository
+from promptgauge.db.segment_repository import SegmentRepository
+from promptgauge.db.verdict_repository import VerdictRepository
+from promptgauge.prompt.prompt_segmenter import PromptSegmenter
 from promptgauge.provider.anthropic_provider import AnthropicProvider
 from promptgauge.provider.provider import Provider
 from promptgauge.runner.eval_result import EvalResult
 from promptgauge.runner.evaluator import Evaluator, ProgressCallback
 from promptgauge.scorers import contains, exact, grounded, json_schema, rubric
 from promptgauge.scorers.scorer import Scorer
+from promptgauge.stats.bootstrap import Bootstrap
+from promptgauge.stats.verdict_rule import VerdictRule
 
 DB_RELATIVE_PATH = Path(".promptgauge") / "promptgauge.db"
 
@@ -87,28 +98,10 @@ def run_evaluation(
 ) -> EvalResult:
     """Wire the evaluator for one run and execute it. Shared by the CLI and the SDK."""
     log = logger or Logger()
-    pricing = Pricing()
-    for model in (config.model, config.judge):
-        pricing.require(model)
-    # Fail on a missing key before touching the database, so a bad shell leaves no trace.
-    live = provider or build_provider(pricing, log)
+    live = _live_provider(config, log, provider)
     database = open_database(project_dir)
     try:
-        cache = CallCache(
-            live,
-            CallRepository(database),
-            log,
-            concurrency=config.concurrency,
-        )
-        evaluator = Evaluator(
-            cache,
-            ExperimentRepository(database),
-            CaseRepository(database),
-            ResultRepository(database),
-            CallRepository(database),
-            log,
-            progress,
-        )
+        evaluator = _build_evaluator(database, live, config, log, progress)
         dataset = DatasetLoader().load(config.dataset)
         prompt_text = config.prompt.read_text(encoding="utf-8")
         return asyncio.run(
@@ -126,6 +119,86 @@ def run_evaluation(
         )
     finally:
         database.close()
+
+
+def run_ablation(
+    config: Config,
+    project_dir: Path,
+    scorers: list[Scorer],
+    *,
+    name: str | None = None,
+    logger: Logger | None = None,
+    progress: ProgressCallback | None = None,
+    provider: Provider | None = None,
+) -> AblationReport:
+    """Wire the ablation for one run and execute it. Shared by the CLI and the SDK.
+
+    Raises BudgetExceededError before any call when the estimate is over `budget_usd`.
+    """
+    log = logger or Logger()
+    live = _live_provider(config, log, provider)
+    database = open_database(project_dir)
+    try:
+        dataset = DatasetLoader().load(config.dataset)
+        prompt_text = config.prompt.read_text(encoding="utf-8")
+        segmenter = PromptSegmenter()
+        ablation = Ablation(
+            _build_evaluator(database, live, config, log, None),
+            segmenter,
+            AblationPlanner(segmenter, len(dataset.cases), config.repeats),
+            BudgetPlanner(Pricing(), config.budget_usd),
+            Bootstrap(),
+            VerdictRule(config.delta),
+            PromptCutter(),
+            ExperimentRepository(database),
+            SegmentRepository(database),
+            VerdictRepository(database),
+            CallRepository(database),
+            log,
+            progress,
+        )
+        return asyncio.run(
+            ablation.run(
+                name=name or f"ablate {config.prompt.name}",
+                prompt_text=prompt_text,
+                dataset=dataset,
+                model=config.model,
+                judge_model=config.judge,
+                scorers=scorers,
+                repeats=config.repeats,
+                temperature=config.temperature,
+                config_json=config.model_dump_json(),
+            )
+        )
+    finally:
+        database.close()
+
+
+def _live_provider(config: Config, log: Logger, provider: Provider | None) -> Provider:
+    pricing = Pricing()
+    for model in (config.model, config.judge):
+        pricing.require(model)
+    # Fail on a missing key before touching the database, so a bad shell leaves no trace.
+    return provider or build_provider(pricing, log)
+
+
+def _build_evaluator(
+    database: Database,
+    provider: Provider,
+    config: Config,
+    log: Logger,
+    progress: ProgressCallback | None,
+) -> Evaluator:
+    cache = CallCache(provider, CallRepository(database), log, concurrency=config.concurrency)
+    return Evaluator(
+        cache,
+        ExperimentRepository(database),
+        CaseRepository(database),
+        ResultRepository(database),
+        CallRepository(database),
+        log,
+        progress,
+    )
 
 
 @app.command()
@@ -160,7 +233,44 @@ def eval(config: str = "promptgauge.yaml") -> None:
 @app.command()
 def ablate(config: str = "promptgauge.yaml", calls_per_month: int = 100_000) -> None:
     """Knock out blocks then lines, measure, paint the prompt, write the cut prompt."""
-    raise NotImplementedError
+    console = Console()
+    try:
+        config_path = Path(config).resolve()
+        settings = Config.load(config_path)
+        scorers = build_scorers(settings.scorers)
+        with ProgressBar(
+            TextColumn("{task.completed}/{task.total} calls"),
+            BarColumn(),
+            TextColumn("${task.fields[spend]:.4f}"),
+            console=console,
+            transient=True,
+        ) as bar:
+            task = bar.add_task("ablate", total=None, spend=0.0)
+
+            def progress(done: int, total: int, spend: float) -> None:
+                bar.update(task, completed=done, total=total, spend=spend)
+
+            report = run_ablation(settings, config_path.parent, scorers, progress=progress)
+        # Invariant 5: the file is written only when a confirmation run exists; the painter says
+        # whether that run confirmed it.
+        cut_path = None
+        if report.confirmation is not None:
+            cut_path = settings.prompt.with_suffix(".cut.md")
+            cut_path.write_text(report.cut_prompt, encoding="utf-8")
+        TerminalPainter(console, Pricing()).render(
+            report,
+            calls_per_month=calls_per_month,
+            inr_rate=settings.inr_rate,
+            cut_path=cut_path,
+        )
+    except BudgetExceededError as exc:
+        console.print(f"[red]over budget:[/] {exc}", highlight=False)
+        sys.exit(2)
+    except PromptgaugeError as exc:
+        console.print(f"[red]error:[/] {exc}", highlight=False)
+        sys.exit(1)
+    if report.stopped != "none":
+        sys.exit(1)
 
 
 @app.command()

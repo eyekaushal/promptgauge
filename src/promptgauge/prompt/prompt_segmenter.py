@@ -30,6 +30,10 @@ class PromptSegmenter:
         # estimate is len/4, the usual rule of thumb for English prose (F5.4).
         self._count_tokens = count_tokens or self._estimate_tokens
 
+    def tokens(self, text: str) -> int:
+        """Token count of any text by the same counter the segments use, so totals add up."""
+        return self._count_tokens(text) if text else 0
+
     def blocks(self, text: str) -> list[Segment]:
         """Top-level segments of `text` in document order (F5.1)."""
         spans: list[tuple[int, int]] = []

@@ -5,8 +5,9 @@ import pytest
 
 import promptgauge
 from promptgauge import scorers
+from promptgauge.ablate.ablation_report import AblationReport
 from promptgauge.cli import main
-from promptgauge.core.errors import ConfigError
+from promptgauge.core.errors import BudgetExceededError, ConfigError
 from promptgauge.provider.fake_provider import FakeProvider
 
 EXAMPLE = Path(__file__).parent.parent / "examples" / "support-bot"
@@ -49,6 +50,33 @@ def test_evaluate_validates_paths_and_scorers(tmp_path: Path) -> None:
         )
 
 
-def test_ablate_is_not_built_yet() -> None:
-    with pytest.raises(NotImplementedError):
-        promptgauge.ablate()
+def test_ablate_runs_the_example_from_code(example: Path, monkeypatch) -> None:
+    provider = FakeProvider(default="ok")
+    monkeypatch.setattr(main, "build_provider", lambda pricing, logger: provider)
+    report = promptgauge.ablate(
+        dataset=example / "cases.jsonl",
+        prompt=example / "system.md",
+        model="claude-sonnet-4-5",
+        scorers=[scorers.contains()],
+        repeats=1,
+        budget_usd=2.0,
+        name="from code",
+    )
+    assert isinstance(report, AblationReport)
+    assert report.name == "from code" and report.stopped == "none"
+    assert len(report.verdicts) >= 8 and report.confirmation is not None
+    assert provider.calls and (example / ".promptgauge" / "promptgauge.db").is_file()
+
+
+def test_ablate_refuses_over_budget_without_calling(example: Path, monkeypatch) -> None:
+    provider = FakeProvider(default="ok")
+    monkeypatch.setattr(main, "build_provider", lambda pricing, logger: provider)
+    with pytest.raises(BudgetExceededError):
+        promptgauge.ablate(
+            dataset=example / "cases.jsonl",
+            prompt=example / "system.md",
+            model="claude-sonnet-4-5",
+            scorers=["contains"],
+            budget_usd=0.01,
+        )
+    assert provider.calls == []

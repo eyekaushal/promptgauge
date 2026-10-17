@@ -48,6 +48,11 @@ class Scorer(ABC):
     def key(self) -> str:
         """Stable label, e.g. `contains` or `json_schema:schema.json`."""
 
+    @property
+    def uses_judge(self) -> bool:
+        """True for scorers that spend a judge call per output; the budget planner counts them."""
+        return False
+
     def applies_to(self, case: Case) -> bool:
         """False when the case lacks the field this scorer needs; the runner then records nothing
         for this (case, scorer) rather than a zero."""

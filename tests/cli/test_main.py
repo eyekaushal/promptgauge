@@ -18,6 +18,7 @@ from promptgauge.scorers.rubric_scorer import RubricScorer
 
 EXAMPLE = Path(__file__).parents[2] / "examples" / "support-bot"
 JUDGE_OK = '{"score": 0.9, "reason": "fine"}'
+FREE_PRICING = main.Pricing({m: (0.0, 0.0) for m in main.Pricing().models()})
 
 
 @pytest.fixture
@@ -113,3 +114,50 @@ def test_config_resolves_custom_rubric_file_next_to_it(tmp_path: Path) -> None:
     built = main.build_scorers(config.scorers)
     assert [s.key for s in built] == ["rubric:voice", "rubric:helpful"]
     assert isinstance(contains(), ContainsScorer)
+
+
+def _raise_budget(example: Path, budget: float) -> None:
+    config = example / "promptgauge.yaml"
+    config.write_text(config.read_text().replace("budget_usd: 1.00", f"budget_usd: {budget}"))
+
+
+def test_ablate_command_paints_and_writes_the_cut_prompt(example: Path, monkeypatch) -> None:
+    provider = FakeProvider(default=JUDGE_OK)
+    monkeypatch.setattr(main, "build_provider", lambda pricing, logger: provider)
+    _raise_budget(example, 20.0)
+    result = CliRunner().invoke(
+        main.app,
+        ["ablate", "--config", str(example / "promptgauge.yaml"), "--calls-per-month", "1000"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "no measurable effect at this sample size" in result.output
+    assert "a month at 1,000 calls" in result.output
+    cut = example / "system.cut.md"
+    assert cut.is_file() and "cut prompt written to" in result.output
+    assert provider.calls
+
+
+def test_ablate_command_exits_2_over_budget_without_calling(example: Path, monkeypatch) -> None:
+    provider = FakeProvider(default=JUDGE_OK)
+    monkeypatch.setattr(main, "build_provider", lambda pricing, logger: provider)
+    _raise_budget(example, 0.05)
+    result = CliRunner().invoke(main.app, ["ablate", "--config", str(example / "promptgauge.yaml")])
+    assert result.exit_code == 2, result.output
+    assert "exceeds budget $0.05" in result.output and "nothing was called" in result.output
+    assert result.output.count("  - ") == 3
+    assert provider.calls == [] and not (example / "system.cut.md").exists()
+
+
+def test_ablate_command_exits_1_on_a_stopped_run(example: Path, monkeypatch) -> None:
+    # The estimate passes on the fake's free table, then real prices cross the budget mid-run.
+    provider = FakeProvider(default=JUDGE_OK)
+    monkeypatch.setattr(main, "build_provider", lambda pricing, logger: provider)
+    real_planner = main.BudgetPlanner
+    monkeypatch.setattr(
+        main, "BudgetPlanner", lambda pricing, budget: real_planner(FREE_PRICING, budget)
+    )
+    _raise_budget(example, 0.01)
+    result = CliRunner().invoke(main.app, ["ablate", "--config", str(example / "promptgauge.yaml")])
+    assert result.exit_code == 1, result.output
+    assert "Stopped at the budget" in result.output
+    assert "cut prompt not written" in result.output and not (example / "system.cut.md").exists()
