@@ -1,13 +1,13 @@
 import { GearSix } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
-import Dash from "../ui/Dash.jsx";
+import CodeBlock from "../ui/CodeBlock.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
-import { count, score, usd } from "../ui/format.js";
 import Panel from "../ui/Panel.jsx";
 import Tag from "../ui/Tag.jsx";
 import TitleRow from "../ui/TitleRow.jsx";
 import { useRequest } from "../ui/useRequest.js";
+import { configToYaml } from "../ui/yaml.js";
 
 /**
  * F8.4: model, judge, budget_usd, delta from the config of the last run (else the promptgauge.yaml
@@ -98,21 +98,8 @@ export default function Settings({ api }) {
 
           <Section title={source ? `Run config (from the ${source})` : "Run config"}>
             {config ? (
-              <div className="grid max-w-xl grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
-                <Field label="model" value={config.model} />
-                <Field label="judge" value={config.judge} />
-                <Field label="budget_usd" value={usd(config.budget_usd)} />
-                <Field label="delta" value={score(config.delta)} />
-                <Field label="repeats" value={count(config.repeats)} />
-                <Field label="temperature" value={config.temperature} />
-                <Field label="concurrency" value={count(config.concurrency)} />
-                <Field label="prompt" value={config.prompt} mono />
-                <Field label="dataset" value={config.dataset} mono />
-                <Field
-                  label="scorers"
-                  value={(config.scorers ?? []).map((s) => (s.arg ? `${s.name}:${s.arg}` : s.name)).join(", ")}
-                  mono
-                />
+              <div className="max-w-2xl">
+                <CodeBlock label="promptgauge.yaml" text={configToYaml(config)} numbered yaml />
               </div>
             ) : (
               <EmptyState
@@ -170,16 +157,5 @@ function Row({ label, children }) {
       <span className="w-40 text-xs font-medium text-secondary">{label}</span>
       {children}
     </div>
-  );
-}
-
-function Field({ label, value, mono = false }) {
-  return (
-    <>
-      <span className="text-xs font-medium text-secondary">{label}</span>
-      <span className={mono ? "truncate font-mono text-mono" : ""} title={mono ? value : undefined}>
-        {value ?? <Dash />}
-      </span>
-    </>
   );
 }

@@ -23,7 +23,7 @@ import Panel from "../ui/Panel.jsx";
 import SegmentCard from "../ui/SegmentCard.jsx";
 import SidePanel from "../ui/SidePanel.jsx";
 import Slider from "../ui/Slider.jsx";
-import StatTile from "../ui/StatTile.jsx";
+import MetricGrid from "../ui/MetricGrid.jsx";
 import StatusTag from "../ui/StatusTag.jsx";
 import Table from "../ui/Table.jsx";
 import TitleRow from "../ui/TitleRow.jsx";
@@ -149,13 +149,37 @@ function AblationDetail({ api, id }) {
                 {count(measured)} of {count(total)} segments measured; the cut prompt was not confirmed.
               </div>
             )}
-            <div className="flex flex-wrap gap-2 px-5 pt-4">
-              <StatTile label="segments" value={`${count(measured)} / ${count(total)}`} hint="measured" />
-              <StatTile label="red · grey · green" value={`${counts.red} · ${counts.grey} · ${counts.green}`} hint={`at delta ${current.toFixed(2)}`} />
-              <StatTile label="tokens" value={data.ablation ? `${count(data.ablation.tokens_before)} → ${count(data.ablation.tokens_after)}` : "–"} />
-              <StatTile label="baseline" value={score(baseline) ?? "–"} />
-              <StatTile label="cut" value={score(data.ablation?.cut_score) ?? "–"} hint={data.ablation ? (data.ablation.confirmed ? "confirmed" : "not confirmed") : "no confirmation run"} />
-            </div>
+            <MetricGrid
+              groups={[
+                [
+                  { label: "segments measured", value: `${count(measured)} / ${count(total)}` },
+                  { label: "red", value: counts.red, hint: `at delta ${current.toFixed(2)}` },
+                  { label: "grey", value: counts.grey },
+                  { label: "green", value: counts.green },
+                ],
+                [
+                  {
+                    label: "tokens",
+                    value: data.ablation
+                      ? `${count(data.ablation.tokens_before)} → ${count(data.ablation.tokens_after)}`
+                      : "–",
+                    hint: "before → after the cut",
+                  },
+                ],
+                [
+                  { label: "baseline", value: score(baseline) ?? "–" },
+                  {
+                    label: "cut",
+                    value: score(data.ablation?.cut_score) ?? "–",
+                    hint: data.ablation
+                      ? data.ablation.confirmed
+                        ? "confirmed"
+                        : "not confirmed"
+                      : "no confirmation run",
+                  },
+                ],
+              ]}
+            />
             <div className="flex flex-col gap-2 px-5 pt-4">
               <VerdictLegend legend={data.legend} counts={counts} />
               {mostlyGrey && (

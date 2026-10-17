@@ -75,6 +75,7 @@ Both variable fonts are imported from `@fontsource-variable/*` in `styles.css` a
 | `sm` | 12 / 16 | 400 (500 in table headers) | Metadata, timestamps, hover-card rows, table headers, toolbar chips |
 | `base` | 13 / 18 | 400 | Tables, menus, buttons, inputs |
 | `mono` | 13 / 20 | 400 | The painted prompt, case inputs and outputs, the cut prompt, judge reasons |
+| `mono-sm` | 12 / 18 | 400 | Numbered YAML (the run config), line numbers in `tertiary`, keys in `secondary` (P3) |
 | `md` | 15 / 22 | 400 | Side-panel body text |
 | `lg` | 17 / 24 | 600 (500 for section titles) | Side-panel and dialog titles; Settings section titles |
 | `xl` | 20 / 26 | 600 | Page titles ("Ablation · system.md") |
@@ -156,8 +157,10 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 | `ColumnPicker` | Radix Popover | P2 | a `btn-secondary` reading `Columns (7)` (visible count) that opens a popover of checkboxes, one per hideable column (`fixed: true` columns are not listed), with `Reset`; state from `ui/useColumns.js`, which keeps the hidden keys in `localStorage` under `promptgauge.columns.<screen>` (`runs`, `results`, `datasets`); a hidden column is also dropped from the table's sort |
 | `Tag` | own | B15 | 11 px, 500, `surface-2` background with `ink` text; case tags and experiment `kind` |
 | `StatusTag` | `Tag` | B15, P1 | icon + word on the soft tint: `✓ done` ok, `△ partial` warn, `■ stopped: reason` warn, `◌ running` secondary (Phosphor Check, Warning, Square, CircleDashed at 11 px) |
-| `SidePanel` | own | B15 | the 360 px right column; title, subtitle, close, scrolling body of `CodeBlock`s |
-| `StatTile` | own | B16 | one number with an `xs` label; the totals row |
+| `SidePanel` | own | B15, P3 | the 360 px right column; title, subtitle, close, scrolling body of `Section`s |
+| `Section` | own | P3 | collapsible: a 28 px header row with a 12 px icon, the name in `sm` 500 `secondary`, an optional `actions` slot on the right and a chevron; `open` by default unless `defaultOpen={false}`; the body is whatever the screen puts in it. Sections in a side panel: `Input`, `Output` (with the `Pretty / Raw` toggle: pretty wraps, raw is a `pre` that scrolls sideways), `Expected`, `Context`, `Tags`, `Scores` (one row per scorer: key, score or `failed`, the judge reason verbatim underneath). On the Experiment screen a closed `config` section sits under the metric grid |
+| `Metric` | own | B16 as `StatTile`, P3 | one label-above-value cell: `sm` 500 `secondary` label, `md` value, optional `sm` `secondary` hint; no background (the old tiles looked like buttons) |
+| `MetricGrid` | own | P3 | `groups=[[metric, …], …]`: a flex row of groups, 24 px apart, a `line` hairline between groups, under the title row with a hairline below. The run header (status · kind / model · judge / score · one per scorer / repeats · date) and the Ablation totals (segments measured · red · grey · green at delta / tokens before → after / baseline · cut with confirmed) |
 | `VerdictLegend` | own | B16 | four swatches with the word beside each, always visible on the Ablation screen |
 | `PaintedPrompt` | own | B16 | the prompt as `pre`; blocks in document order, each block's lines inside it; text outside any segment stays plain |
 | `SegmentSpan` | own | B16 | one painted run; `data-verdict`; hover opens the card (Radix HoverCard); click pins it in the right panel, a click on the prompt background unpins |
@@ -167,7 +170,7 @@ Radix primitives (`radix-ui`, from B16) styled with Tailwind; Phosphor icons, re
 | `CutPromptPanel` | own | B16 | two columns (§0): the left marks removed runs found by `ui/deletions.js` (an LCS over word and whitespace tokens; deletion only makes the cut a subsequence of the original), `tokens_before → tokens_after` (−n, −%), `cut_score [lo, hi]` beside `baseline_score`, `confirmed` / `cut prompt not confirmed` word with the CLI's wording, `calls_per_month` input (saved through `PUT /api/settings` on blur or Enter), USD and INR saved, primary "Copy cut prompt" button |
 | `Tooltip` | Radix Tooltip | B17 | 300 ms delay, `panel`, 11 px; `Tag tip=`, `Swatch word=`, `StatusTag`, failed cells, compare deltas and the confirmation tags all carry their word through it; the stopped banner and tinted rows use `title` |
 | `Dialog` | Radix Dialog | B17 | 480 px, radius 12; `SidePanel` renders as one under 1100 px (`ui/useMediaQuery.js`). The compare picker stayed two checkboxes and a button (B15), so no dialog there |
-| `CodeBlock` | own | B15 | mono text, `surface-2`, copy button top-right |
+| `CodeBlock` | own | B15, P3 | mono text, `surface-2`, copy button top-right. `wrap={false}` makes it a sideways-scrolling `pre` (the Raw view). `numbered` adds a `tertiary` line-number gutter and drops to `mono-sm`; `yaml` paints each `key:` in `secondary`. The run config is rendered by `ui/yaml.js` (`configToYaml`), which writes it the way the user did in `promptgauge.yaml` (`- contains`, `- rubric: helpful`), never as the API's `{name, arg}` objects |
 
 Rules for every component:
 
@@ -191,7 +194,7 @@ All requests go through `dashboard/src/api/ApiClient.js`, one method per route, 
 | Compare (`/experiments?a=&b=`, reached by ticking two rows) | `GET /api/experiments/compare?a=&b=` | `a`, `b` summaries; `scorers[key].{a,b,delta}`; `cases[].{index,input,a,b,delta}`; deltas signed. |
 | Ablations (`/ablations`) | `GET /api/experiments?kind=ablation` | name, model, baseline `score`, cases, calls, cost, date, status; row click opens the run. |
 | Ablation (`/ablations/:id`) | `GET /api/ablations/{id}`, `GET /api/settings` | `prompt_text` painted by `segments[].{start_offset,end_offset,level,parent_segment_id,verdict}`; `delta` seeds the slider; `legend` is the words; `input_usd_per_million` (null when the model left the price table: the panel then says so instead of a figure); `ablation.*` fills the cut panel; `totals`; `experiment.status` / `stopped_reason` drive the banner; `calls_per_month` and `inr_rate` from settings. The stat tiles and the legend counts follow the slider. The CLI's "Most segments are grey" hint appears when more than 80% of measured segments are grey. |
-| Settings | `GET /api/settings`, `GET /api/experiments` + `GET /api/experiments/{id}` (the newest), `PUT /api/settings` | Run config from the last run's `config` (F8.4), else the `config` echo of the loaded promptgauge.yaml, else an empty state: model, judge, budget_usd, delta, repeats, temperature, concurrency, prompt, dataset, scorers. `api_key_present` as a tag (present ok / missing danger, never the key). `calls_per_month` and `inr_rate` inputs with one primary Save, disabled until valid and changed. |
+| Settings | `GET /api/settings`, `GET /api/experiments` + `GET /api/experiments/{id}` (the newest), `PUT /api/settings` | Run config from the last run's `config` (F8.4), else the `config` echo of the loaded promptgauge.yaml, else an empty state; shown as numbered YAML (`CodeBlock numbered yaml`) in the key order of `Config`: prompt, dataset, model, judge, scorers, repeats, temperature, budget_usd, delta, concurrency, inr_rate. `api_key_present` as a tag (present ok / missing danger, never the key). `calls_per_month` and `inr_rate` inputs with one primary Save, disabled until valid and changed. |
 
 ### The verdict rule, repeated client-side
 

@@ -8,6 +8,7 @@ import {
   Equals,
   Eye,
   EyeSlash,
+  FileText,
   Flask,
   GitBranch,
   Hash,
@@ -30,7 +31,9 @@ import ColumnPicker from "../ui/ColumnPicker.jsx";
 import Dash from "../ui/Dash.jsx";
 import EmptyState from "../ui/EmptyState.jsx";
 import { count, dateTime, delta, duration, score, usd } from "../ui/format.js";
+import MetricGrid from "../ui/MetricGrid.jsx";
 import Panel from "../ui/Panel.jsx";
+import Section from "../ui/Section.jsx";
 import SidePanel from "../ui/SidePanel.jsx";
 import StatusTag from "../ui/StatusTag.jsx";
 import Table from "../ui/Table.jsx";
@@ -39,6 +42,7 @@ import TitleRow from "../ui/TitleRow.jsx";
 import Tooltip from "../ui/Tooltip.jsx";
 import { useColumns } from "../ui/useColumns.js";
 import { useRequest } from "../ui/useRequest.js";
+import { configToYaml } from "../ui/yaml.js";
 
 const RUN_COMMAND = "promptgauge eval --config promptgauge.yaml";
 
@@ -193,6 +197,7 @@ function ExperimentDetail({ api, id }) {
   const cases = useRequest(() => (hash ? api.cases(hash) : null), [api, hash]);
   const [showVariants, setShowVariants] = useState(false);
   const [selectedKey, setSelectedKey] = useState(null);
+  const [pretty, setPretty] = useState(true);
 
   const run = detail.data;
   const scorerKeys = run ? Object.keys(run.scorer_means) : [];
@@ -282,53 +287,103 @@ function ExperimentDetail({ api, id }) {
           subtitle={selected.variant_id == null ? "baseline" : `variant ${selected.variant_id}`}
           onClose={() => setSelectedKey(null)}
         >
-          <CodeBlock label="input" text={selected.input} />
-          <CodeBlock
-            label={selected.output == null ? "output · failed" : "output"}
-            text={selected.output}
-            tone={selected.output == null ? "danger" : null}
-          />
-          <CodeBlock label="expected" text={selected.expected} />
-          {scorerKeys.map((key) => {
-            const result = selected.scores[key];
-            return (
-              <div key={key}>
-                <div className="mb-1 flex items-center gap-2 text-xs font-medium text-secondary">
-                  <span>{key}</span>
-                  <ScoreCell result={result} />
+          <Section Icon={ArrowDownRight} title="Input">
+            <CodeBlock text={selected.input} />
+          </Section>
+          <Section
+            Icon={ArrowUpRight}
+            title={selected.output == null ? "Output · failed" : "Output"}
+            actions={<FormatToggle pretty={pretty} onChange={setPretty} />}
+          >
+            <CodeBlock
+              text={selected.output}
+              tone={selected.output == null ? "danger" : null}
+              wrap={pretty}
+            />
+          </Section>
+          <Section Icon={Equals} title="Expected">
+            <CodeBlock text={selected.expected} />
+          </Section>
+          <Section Icon={Percent} title="Scores">
+            {scorerKeys.map((key) => {
+              const result = selected.scores[key];
+              return (
+                <div key={key} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate">{key}</span>
+                    <ScoreCell result={result} />
+                  </div>
+                  {result?.reason != null && (
+                    <CodeBlock label="judge reason" text={result.reason} />
+                  )}
                 </div>
-                {result?.reason != null && (
-                  <CodeBlock label="judge reason" text={result.reason} />
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </Section>
         </SidePanel>
       )}
     </>
   );
 }
 
+/** The metric grid under the title (DESIGN.md §7) and a closed `config` section with the YAML. */
 function RunHeader({ run }) {
-  const items = [
-    ["status", <StatusTag key="s" status={run.status} stoppedReason={run.stopped_reason} />],
-    ["kind", <Tag key="k">{run.kind}</Tag>],
-    ["model", run.model],
-    ["judge", run.judge],
-    ["score", score(run.score) ?? <Dash />],
-    ...Object.entries(run.scorer_means).map(([k, v]) => [k, score(v) ?? <Dash />]),
-    ["repeats", count(run.repeats)],
-    ["date", dateTime(run.created_at)],
+  const groups = [
+    [
+      {
+        label: "status",
+        value: <StatusTag status={run.status} stoppedReason={run.stopped_reason} />,
+      },
+      { label: "kind", value: <Tag>{run.kind}</Tag> },
+    ],
+    [
+      { label: "model", value: run.model },
+      { label: "judge", value: run.judge },
+    ],
+    [
+      { label: "score", value: score(run.score) ?? <Dash /> },
+      ...Object.entries(run.scorer_means).map(([k, v]) => ({
+        key: `scorer:${k}`,
+        label: k,
+        value: score(v) ?? <Dash />,
+      })),
+    ],
+    [
+      { label: "repeats", value: count(run.repeats) },
+      { label: "date", value: dateTime(run.created_at) },
+    ],
   ];
   return (
-    <div className="flex flex-wrap gap-x-6 gap-y-2 border-b border-line px-5 py-3 text-sm">
-      {items.map(([label, value]) => (
-        <div key={label} className="flex items-baseline gap-1.5">
-          <span className="text-xs font-medium text-secondary">{label}</span>
-          <span>{value}</span>
-        </div>
-      ))}
-    </div>
+    <>
+      <MetricGrid groups={groups} />
+      <div className="border-b border-line px-5 py-2">
+        <Section Icon={FileText} title="config" defaultOpen={false}>
+          <CodeBlock text={configToYaml(run.config)} numbered yaml />
+        </Section>
+      </div>
+    </>
+  );
+}
+
+/** Pretty wraps the output; Raw shows it as written, scrolling sideways. */
+function FormatToggle({ pretty, onChange }) {
+  const option = (on, label) => (
+    <button
+      type="button"
+      onClick={() => onChange(on)}
+      aria-pressed={pretty === on}
+      className={`h-6 rounded-sm px-1.5 text-xs font-medium ${
+        pretty === on ? "bg-surface-3 text-ink" : "text-secondary hover:text-ink"
+      }`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span className="flex items-center gap-0.5">
+      {option(true, "Pretty")}
+      {option(false, "Raw")}
+    </span>
   );
 }
 

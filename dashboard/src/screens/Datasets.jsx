@@ -16,6 +16,7 @@ import EmptyState from "../ui/EmptyState.jsx";
 import { count, dateTime, shortHash } from "../ui/format.js";
 import Panel from "../ui/Panel.jsx";
 import SearchInput from "../ui/SearchInput.jsx";
+import Section from "../ui/Section.jsx";
 import SidePanel from "../ui/SidePanel.jsx";
 import Table from "../ui/Table.jsx";
 import Tag from "../ui/Tag.jsx";
@@ -132,11 +133,16 @@ export default function Datasets({ api }) {
           subtitle={shortHash(selected.dataset_hash)}
           onClose={() => setSelectedId(null)}
         >
-          <CodeBlock label="input" text={selected.input} />
-          <CodeBlock label="expected" text={selected.expected} />
-          <CodeBlock label="context" text={selected.context} />
-          <div>
-            <div className="mb-1 text-xs font-medium text-secondary">tags</div>
+          <Section Icon={ArrowDownRight} title="Input">
+            <CodeBlock text={selected.input} />
+          </Section>
+          <Section Icon={Equals} title="Expected">
+            <CodeBlock text={selected.expected} />
+          </Section>
+          <Section Icon={TextAlignLeft} title="Context">
+            <CodeBlock text={selected.context} />
+          </Section>
+          <Section Icon={TagIcon} title="Tags">
             {selected.tags.length ? (
               <div className="flex flex-wrap gap-1">
                 {selected.tags.map((t) => (
@@ -146,7 +152,7 @@ export default function Datasets({ api }) {
             ) : (
               <Dash word="no tags" />
             )}
-          </div>
+          </Section>
         </SidePanel>
       )}
     </>
