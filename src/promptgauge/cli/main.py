@@ -20,10 +20,11 @@ from promptgauge.ablate.budget_planner import BudgetPlanner
 from promptgauge.ablate.prompt_cutter import PromptCutter
 from promptgauge.cache.call_cache import CallCache
 from promptgauge.cli.eval_table import EvalTable
+from promptgauge.cli.terminal_painter import TerminalPainter
 from promptgauge.config.config import Config
 from promptgauge.config.pricing import Pricing
 from promptgauge.config.scorer_spec import ScorerSpec
-from promptgauge.core.errors import ConfigError, PromptgaugeError
+from promptgauge.core.errors import BudgetExceededError, ConfigError, PromptgaugeError
 from promptgauge.core.logger import Logger
 from promptgauge.dataset.dataset_loader import DatasetLoader
 from promptgauge.db.call_repository import CallRepository
@@ -232,7 +233,44 @@ def eval(config: str = "promptgauge.yaml") -> None:
 @app.command()
 def ablate(config: str = "promptgauge.yaml", calls_per_month: int = 100_000) -> None:
     """Knock out blocks then lines, measure, paint the prompt, write the cut prompt."""
-    raise NotImplementedError
+    console = Console()
+    try:
+        config_path = Path(config).resolve()
+        settings = Config.load(config_path)
+        scorers = build_scorers(settings.scorers)
+        with ProgressBar(
+            TextColumn("{task.completed}/{task.total} calls"),
+            BarColumn(),
+            TextColumn("${task.fields[spend]:.4f}"),
+            console=console,
+            transient=True,
+        ) as bar:
+            task = bar.add_task("ablate", total=None, spend=0.0)
+
+            def progress(done: int, total: int, spend: float) -> None:
+                bar.update(task, completed=done, total=total, spend=spend)
+
+            report = run_ablation(settings, config_path.parent, scorers, progress=progress)
+        # Invariant 5: the file is written only when a confirmation run exists; the painter says
+        # whether that run confirmed it.
+        cut_path = None
+        if report.confirmation is not None:
+            cut_path = settings.prompt.with_suffix(".cut.md")
+            cut_path.write_text(report.cut_prompt, encoding="utf-8")
+        TerminalPainter(console, Pricing()).render(
+            report,
+            calls_per_month=calls_per_month,
+            inr_rate=settings.inr_rate,
+            cut_path=cut_path,
+        )
+    except BudgetExceededError as exc:
+        console.print(f"[red]over budget:[/] {exc}", highlight=False)
+        sys.exit(2)
+    except PromptgaugeError as exc:
+        console.print(f"[red]error:[/] {exc}", highlight=False)
+        sys.exit(1)
+    if report.stopped != "none":
+        sys.exit(1)
 
 
 @app.command()
